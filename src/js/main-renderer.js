@@ -384,11 +384,14 @@ class ScreenRecorder {
   }
 
   setupMediaRecorder(stream) {
-    let options = {}
+    let options = { videoBitsPerSecond: 2500000 }
+    
     if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
       options.mimeType = 'video/webm;codecs=vp9,opus'
     } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
       options.mimeType = 'video/webm;codecs=vp8,opus'
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
+      options.mimeType = 'video/webm;codecs=h264'
     } else if (MediaRecorder.isTypeSupported('video/webm')) {
       options.mimeType = 'video/webm'
     }
@@ -501,7 +504,8 @@ class ScreenRecorder {
     }
 
     try {
-      const blob = new Blob(this.recordingState.recordedChunks, { type: 'video/webm' })
+      const mimeType = this.recordingState.mediaRecorder ? this.recordingState.mediaRecorder.mimeType : 'video/webm'
+      const blob = new Blob(this.recordingState.recordedChunks, { type: mimeType })
 
       const computedDurationSeconds = this.recordingState.getDuration()
       let includedDuration = computedDurationSeconds

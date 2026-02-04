@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('electronAPI', {
   platform: process.platform,
 
+  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+
   openExternal: url => ipcRenderer.invoke('open-external', url),
   openFolder: folderPath => ipcRenderer.invoke('open-folder', folderPath),
 
@@ -89,6 +91,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   youtubeGetChannelInfo: accountId => ipcRenderer.invoke('youtube-get-channel-info', accountId),
   youtubeGetPlaylists: accountId => ipcRenderer.invoke('youtube-get-playlists', accountId),
 
+  mediaCMSOpen: () => ipcRenderer.invoke('open-mediacms-settings'),
+  mediaCMSGetConfig: () => ipcRenderer.invoke('mediacms:get-config'),
+  mediaCMSAuthenticate: (serverUrl, username, password) =>
+    ipcRenderer.invoke('mediacms:authenticate', { serverUrl, username, password }),
+  mediaCMSLogout: () => ipcRenderer.invoke('mediacms:logout'),
+  mediaCMSIsAuthenticated: () => ipcRenderer.invoke('mediacms:is-authenticated'),
+  mediaCMSGetCategories: () => ipcRenderer.invoke('mediacms:get-categories'),
+  mediaCMSUploadVideo: options => ipcRenderer.invoke('mediacms:upload-video', options),
+
   selectFolder: () => ipcRenderer.invoke('select-folder'),
 
   saveToDrive: options => ipcRenderer.invoke('save-to-drive', options),
@@ -157,6 +168,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onYouTubeAccountsUpdated: callback => {
     ipcRenderer.on('youtube-accounts-updated', (event, data) => {
+      try {
+        callback(data)
+      } catch (e) {}
+    })
+  },
+
+  onMediaCMSAuthUpdated: callback => {
+    ipcRenderer.on('mediacms:auth-updated', (event, data) => {
       try {
         callback(data)
       } catch (e) {}

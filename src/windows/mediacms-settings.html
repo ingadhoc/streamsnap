@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; img-src 'self' data: https:;"
+    />
+    <title>MediaCMS Settings</title>
+    <link rel="stylesheet" href="../styles.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(180deg, #fef2f2 0%, #f8fafc 50%, #e0e7ff 100%);
+        font-family:
+          'Inter',
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        color: #0f172a;
+      }
+
+      .page-shell {
+        padding: 36px 24px;
+        max-width: 600px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .hero-panel {
+        background: rgba(255, 255, 255, 0.92);
+        border-radius: 28px;
+        padding: 26px;
+        box-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+      }
+
+      .hero-panel h1 {
+        margin: 0 0 8px 0;
+        font-size: 1.9rem;
+        font-weight: 600;
+        color: #dc2626;
+      }
+
+      .hero-panel p {
+        margin: 0;
+        color: #475569;
+        line-height: 1.6;
+      }
+
+      .settings-card {
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 22px;
+        padding: 24px;
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+      }
+
+      .settings-card h2 {
+        margin: 0 0 16px 0;
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #dc2626;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: #374151;
+        font-size: 0.95rem;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        box-sizing: border-box;
+      }
+
+      .form-group input:focus {
+        outline: none;
+        border-color: #dc2626;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+      }
+
+      .form-group input:disabled {
+        background: #f1f5f9;
+        cursor: not-allowed;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      button {
+        flex: 1;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+      }
+
+      #loginBtn {
+        background: linear-gradient(135deg, #dc2626, #991b1b);
+        color: white;
+        box-shadow: 0 10px 30px rgba(220, 38, 38, 0.35);
+      }
+
+      #logoutBtn {
+        background: #f59e0b;
+        color: white;
+        box-shadow: 0 10px 30px rgba(245, 158, 11, 0.25);
+      }
+
+      #closeBtn {
+        background: #64748b;
+        color: white;
+        box-shadow: 0 10px 30px rgba(100, 116, 139, 0.25);
+      }
+
+      .status-badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+
+      .status-badge.connected {
+        background: #dcfce7;
+        color: #16a34a;
+      }
+
+      .status-badge.disconnected {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+
+      .info-section {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 16px;
+      }
+
+      .info-section p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #64748b;
+      }
+
+      .info-section strong {
+        color: #1e293b;
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .spinner {
+        border: 3px solid #f3f4f6;
+        border-top: 3px solid #dc2626;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .error-message {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+      }
+
+      .success-message {
+        background: #dcfce7;
+        color: #16a34a;
+        padding: 12px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-shell">
+      <div class="hero-panel">
+        <h1>📹 MediaCMS Settings</h1>
+        <p>Connect your MediaCMS server to upload videos directly from StreamSnap.</p>
+      </div>
+
+      <div class="settings-card">
+        <div id="statusBadge"></div>
+        <div id="connectedInfo" style="display: none"></div>
+        <div id="messageArea"></div>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="serverUrl">Server URL</label>
+            <input
+              type="url"
+              id="serverUrl"
+              placeholder="https://mediacms.francoleyes.xyz"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" placeholder="admin" required />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Your password" required />
+          </div>
+
+          <div class="button-group">
+            <button type="submit" id="loginBtn">
+              <span id="loginBtnText">Connect</span>
+            </button>
+            <button type="button" id="logoutBtn" style="display: none">Disconnect</button>
+            <button type="button" id="closeBtn">Close</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script src="../js/mediacms-settings-renderer.js"></script>
+  </body>
+</html>

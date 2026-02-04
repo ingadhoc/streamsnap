@@ -109,12 +109,14 @@ class RecordingHandlers {
 
         const settings = await this.app.getSettings()
         const isDriveAvailable = settings?.driveEnabled && this.app.driveService.isAuthenticated()
+        const recordedPath = this.app.recordingManager.getRecordedVideoPath()
 
         this.app.windowManager.showMainWindow()
         await this.app.windowManager.createSaveWindow({
           showDriveOption: Boolean(isDriveAvailable),
           showDriveSignIn: !this.app.driveService.isAuthenticated(),
           showLocalOption: true,
+          tempVideoPath: recordedPath,
           driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
         })
 
@@ -153,6 +155,7 @@ class RecordingHandlers {
           showDriveOption: Boolean(isDriveAvailable),
           showDriveSignIn: !this.app.driveService.isAuthenticated(),
           showLocalOption: true,
+          tempVideoPath: tempFilePath,
           driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
         })
 

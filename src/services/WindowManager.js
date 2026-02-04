@@ -12,7 +12,9 @@ class WindowManager {
       save: null,
       sourceSelector: null,
       webcam: null,
-      driveAccounts: null
+      driveAccounts: null,
+      youtubeAccounts: null,
+      mediaCMSSettings: null
     }
 
     this.preloadPath = path.join(__dirname, '../preload.js')
@@ -833,6 +835,62 @@ class WindowManager {
 
       return this.windows.youtubeAccounts
     } catch (error) {
+      return null
+    }
+  }
+
+  async createMediaCMSSettingsWindow() {
+    try {
+      if (this.windows.mediaCMSSettings && !this.windows.mediaCMSSettings.isDestroyed()) {
+        this.windows.mediaCMSSettings.focus()
+        return this.windows.mediaCMSSettings
+      }
+
+      const mainWindow = this.windows.main
+      let x, y
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const mainBounds = mainWindow.getBounds()
+        const width = 600
+        const height = 700
+        x = mainBounds.x + Math.floor((mainBounds.width - width) / 2)
+        y = mainBounds.y + Math.floor((mainBounds.height - height) / 2)
+      }
+
+      this.windows.mediaCMSSettings = new BrowserWindow({
+        width: 600,
+        height: 700,
+        x: x,
+        y: y,
+        title: 'MediaCMS Settings',
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: this.preloadPath,
+          enableRemoteModule: false,
+          sandbox: false
+        },
+        show: true,
+        resizable: true,
+        minimizable: true,
+        maximizable: false,
+        fullscreenable: false,
+        alwaysOnTop: true
+      })
+
+      await this.windows.mediaCMSSettings.loadFile('src/windows/mediacms-settings.html')
+
+      this.windows.mediaCMSSettings.once('ready-to-show', () => {
+        this.windows.mediaCMSSettings.show()
+      })
+
+      this.windows.mediaCMSSettings.on('closed', () => {
+        this.windows.mediaCMSSettings = null
+      })
+
+      return this.windows.mediaCMSSettings
+    } catch (error) {
+      console.error('Error creating MediaCMS settings window:', error)
       return null
     }
   }

@@ -59,7 +59,9 @@
     "npm": ">=8.0.0"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "dotenv": "^16.4.5",
+    "fluent-ffmpeg": "^2.1.3",
     "googleapis": "^169.0.0",
     "node-fetch": "^2.7.0"
   },
@@ -155,25 +157,25 @@
         "AppImage",
         "deb",
         "rpm"
-        ],
-        "icon": "src/icon.png",
-        "category": "AudioVideo",
-        "desktop": {
-          "Name": "StreamSnap",
-          "Comment": "Professional screen recording application",
-          "GenericName": "Screen Recorder",
-          "Type": "Application",
-          "Terminal": false,
-          "StartupNotify": true,
-          "Categories": "AudioVideo;Video;Recorder;",
-          "MimeType": "video/mp4;video/webm;",
-          "Keywords": "screen;recording;video;capture;"
-        },
-        "maintainer": "StreamSnap Team <contact@streamsnap.app>",
-        "vendor": "StreamSnap Team",
-        "synopsis": "Professional screen recording application",
-        "description": "StreamSnap is a professional screen recording application built with Electron, featuring Google Drive integration and advanced recording capabilities."
+      ],
+      "icon": "src/icon.png",
+      "category": "AudioVideo",
+      "desktop": {
+        "Name": "StreamSnap",
+        "Comment": "Professional screen recording application",
+        "GenericName": "Screen Recorder",
+        "Type": "Application",
+        "Terminal": false,
+        "StartupNotify": true,
+        "Categories": "AudioVideo;Video;Recorder;",
+        "MimeType": "video/mp4;video/webm;",
+        "Keywords": "screen;recording;video;capture;"
       },
+      "maintainer": "StreamSnap Team <contact@streamsnap.app>",
+      "vendor": "StreamSnap Team",
+      "synopsis": "Professional screen recording application",
+      "description": "StreamSnap is a professional screen recording application built with Electron, featuring Google Drive integration and advanced recording capabilities."
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
