@@ -136,6 +136,8 @@ class StreamSnapApp {
 
   cleanup() {
     try {
+      const { globalShortcut } = require('electron')
+      globalShortcut.unregisterAll()
       this.recordingManager.cleanup()
       this.windowManager.closeAllWindows()
       this.driveService.signOut()

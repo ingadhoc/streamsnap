@@ -3,6 +3,7 @@ const { ipcMain, screen } = require('electron')
 class RecordingHandlers {
   constructor(app) {
     this.app = app
+    this.registeredStartShortcut = null
     this.setupHandlers()
   }
 
@@ -226,6 +227,48 @@ class RecordingHandlers {
 
     ipcMain.handle('register-shortcuts', (event, shortcuts) => {
       this.app.recordingManager.updateShortcuts(shortcuts)
+      
+      // Register the start shortcut globally
+      const { globalShortcut } = require('electron')
+      
+      // Unregister any existing start shortcut
+      if (this.registeredStartShortcut) {
+        try {
+          globalShortcut.unregister(this.registeredStartShortcut)
+        } catch (e) {}
+      }
+      
+      // Register new start shortcut if provided
+      if (shortcuts.start && shortcuts.start.trim()) {
+        try {
+          const registered = globalShortcut.register(shortcuts.start, () => {
+            // Check if not already recording
+            if (!this.app.recordingManager.isRecording) {
+              // Show main window if hidden/minimized
+              this.app.windowManager.showMainWindow()
+              
+              // Open source selector
+              setTimeout(async () => {
+                const mainWindow = this.app.windowManager.getWindow('main')
+                if (mainWindow) {
+                  mainWindow.webContents.executeJavaScript(`
+                    if (window.screenRecorder && window.screenRecorder.openSourceSelector) {
+                      window.screenRecorder.openSourceSelector()
+                    }
+                  `).catch(() => {})
+                }
+              }, 200)
+            }
+          })
+          
+          if (registered) {
+            this.registeredStartShortcut = shortcuts.start
+          }
+        } catch (error) {
+          console.error('Failed to register start shortcut:', error)
+        }
+      }
+      
       return { success: true }
     })
   }

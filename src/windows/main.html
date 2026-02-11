@@ -253,6 +253,28 @@
               </h3>
 
               <div class="space-y-4">
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">🎬 Start Recording</label>
+                  <div class="flex gap-2">
+                    <input
+                      type="text"
+                      id="startShortcut"
+                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-400 transition-colors"
+                      placeholder="Click to set global shortcut..."
+                      readonly
+                    />
+                    <button
+                      id="clearStartShortcut"
+                      class="px-2 py-2 text-gray-400 hover:text-red-500 transition-colors"
+                      title="Clear shortcut"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1">
+                    This shortcut works globally, even when the app is minimized
+                  </p>
+                </div>
                 <div class="grid grid-cols-3 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Pause/Resume</label>

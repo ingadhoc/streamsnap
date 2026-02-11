@@ -41,6 +41,8 @@ class ScreenRecorder {
   registerGlobalShortcuts() {
     if (window.electronAPI.registerShortcuts) {
       const shortcuts = {}
+      if (this.settingsManager.settings.startShortcut && this.settingsManager.settings.startShortcut.trim())
+        shortcuts.start = this.settingsManager.settings.startShortcut
       if (this.settingsManager.settings.pauseShortcut && this.settingsManager.settings.pauseShortcut.trim())
         shortcuts.pause = this.settingsManager.settings.pauseShortcut
       if (this.settingsManager.settings.stopShortcut && this.settingsManager.settings.stopShortcut.trim())
