@@ -7,6 +7,7 @@ class ScreenRecorder {
     this.micStream = null
     this.micAnalyser = null
     this.micAnimationFrame = null
+    this.webcamStream = null
 
     this.settingsManager.loadSettings()
     this.settingsManager.updateSaveFolderDisplay()
@@ -96,6 +97,13 @@ class ScreenRecorder {
     document.getElementById('recordWebcam').addEventListener('change', e => {
       this.settingsManager.settings.recordWebcam = e.target.checked
       this.settingsManager.saveSettings()
+      
+      // Show/hide webcam preview
+      if (e.target.checked) {
+        this.showWebcamTest()
+      } else {
+        this.hideWebcamTest()
+      }
     })
 
     document.getElementById('defaultRecordMicrophone').addEventListener('change', e => {
@@ -660,6 +668,57 @@ class ScreenRecorder {
     }
     
     animate()
+  }
+
+  async showWebcamTest() {
+    const container = document.getElementById('webcamTestContainer')
+    const video = document.getElementById('webcamPreview')
+    const status = document.getElementById('webcamStatus')
+    
+    if (!container || !video) return
+    
+    container.classList.remove('hidden')
+    
+    try {
+      // Request webcam access
+      this.webcamStream = await navigator.mediaDevices.getUserMedia({ 
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user'
+        }
+      })
+      
+      video.srcObject = this.webcamStream
+      
+      status.textContent = '✓ Working'
+      status.classList.remove('text-purple-600')
+      status.classList.add('text-green-600')
+    } catch (error) {
+      status.textContent = '✗ Error'
+      status.classList.remove('text-purple-600')
+      status.classList.add('text-red-600')
+      console.error('Webcam access error:', error)
+    }
+  }
+
+  hideWebcamTest() {
+    const container = document.getElementById('webcamTestContainer')
+    const video = document.getElementById('webcamPreview')
+    
+    if (container) {
+      container.classList.add('hidden')
+    }
+    
+    // Stop webcam stream
+    if (this.webcamStream) {
+      this.webcamStream.getTracks().forEach(track => track.stop())
+      this.webcamStream = null
+    }
+    
+    if (video) {
+      video.srcObject = null
+    }
   }
 
   showMultiAccountSuccessModal(payload) {}
