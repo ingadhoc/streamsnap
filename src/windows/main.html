@@ -65,21 +65,42 @@
             <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">🎤 Audio & Webcam</h3>
 
             <div class="grid grid-cols-3 gap-4">
-              <div class="flex items-center justify-between">
-                <div>
-                  <label class="text-sm font-medium text-gray-700">🎤 Microphone</label>
-                  <p class="text-xs text-gray-500 mt-1">Record from microphone</p>
+              <div class="flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                  <div>
+                    <label class="text-sm font-medium text-gray-700">🎤 Microphone</label>
+                    <p class="text-xs text-gray-500 mt-1">Record from microphone</p>
+                  </div>
+                  <div class="relative">
+                    <input type="checkbox" id="recordMicrophone" class="sr-only" />
+                    <label for="recordMicrophone" class="flex items-center cursor-pointer">
+                      <div class="relative">
+                        <div class="toggle-bg w-10 h-6 bg-gray-300 rounded-full shadow-inner transition-colors"></div>
+                        <div
+                          class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"
+                        ></div>
+                      </div>
+                    </label>
+                  </div>
                 </div>
-                <div class="relative">
-                  <input type="checkbox" id="recordMicrophone" class="sr-only" />
-                  <label for="recordMicrophone" class="flex items-center cursor-pointer">
-                    <div class="relative">
-                      <div class="toggle-bg w-10 h-6 bg-gray-300 rounded-full shadow-inner transition-colors"></div>
-                      <div
-                        class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"
-                      ></div>
-                    </div>
-                  </label>
+                <!-- Microphone Test Visualizer -->
+                <div id="micTestContainer" class="hidden mt-2 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-blue-700">🎙️ Mic Test</span>
+                    <span class="text-xs text-blue-600" id="micStatus">Speak to test...</span>
+                  </div>
+                  <div class="flex items-center justify-center h-12 gap-1">
+                    <div class="mic-bar" data-bar="0"></div>
+                    <div class="mic-bar" data-bar="1"></div>
+                    <div class="mic-bar" data-bar="2"></div>
+                    <div class="mic-bar" data-bar="3"></div>
+                    <div class="mic-bar" data-bar="4"></div>
+                    <div class="mic-bar" data-bar="5"></div>
+                    <div class="mic-bar" data-bar="6"></div>
+                    <div class="mic-bar" data-bar="7"></div>
+                    <div class="mic-bar" data-bar="8"></div>
+                    <div class="mic-bar" data-bar="9"></div>
+                  </div>
                 </div>
               </div>
 

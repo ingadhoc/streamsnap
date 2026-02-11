@@ -4,6 +4,9 @@ class ScreenRecorder {
     this.settingsManager = new SettingsManager()
     this.uiManager = new UIManager()
     this.keyboardShortcuts = null
+    this.micStream = null
+    this.micAnalyser = null
+    this.micAnimationFrame = null
 
     this.settingsManager.loadSettings()
     this.settingsManager.updateSaveFolderDisplay()
@@ -76,6 +79,13 @@ class ScreenRecorder {
     document.getElementById('recordMicrophone').addEventListener('change', e => {
       this.settingsManager.settings.recordMicrophone = e.target.checked
       this.settingsManager.saveSettings()
+      
+      // Show/hide and start/stop mic test
+      if (e.target.checked) {
+        this.showMicTest()
+      } else {
+        this.hideMicTest()
+      }
     })
 
     document.getElementById('recordSystemAudio').addEventListener('change', e => {
@@ -556,6 +566,100 @@ class ScreenRecorder {
     }
 
     alert(`${errorMessage}\n\nDetails: ${error.message}`)
+  }
+
+  async showMicTest() {
+    const container = document.getElementById('micTestContainer')
+    if (!container) return
+    
+    container.classList.remove('hidden')
+    
+    try {
+      // Request microphone access
+      this.micStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false
+        } 
+      })
+      
+      // Set up audio analysis
+      const audioContext = new AudioContext()
+      const source = audioContext.createMediaStreamSource(this.micStream)
+      this.micAnalyser = audioContext.createAnalyser()
+      this.micAnalyser.fftSize = 64
+      this.micAnalyser.smoothingTimeConstant = 0.8
+      source.connect(this.micAnalyser)
+      
+      // Start visualization
+      this.animateMicBars()
+      
+      document.getElementById('micStatus').textContent = '✓ Working'
+      document.getElementById('micStatus').classList.add('text-green-600')
+    } catch (error) {
+      document.getElementById('micStatus').textContent = '✗ Error'
+      document.getElementById('micStatus').classList.add('text-red-600')
+      console.error('Microphone access error:', error)
+    }
+  }
+
+  hideMicTest() {
+    const container = document.getElementById('micTestContainer')
+    if (container) {
+      container.classList.add('hidden')
+    }
+    
+    // Stop animation
+    if (this.micAnimationFrame) {
+      cancelAnimationFrame(this.micAnimationFrame)
+      this.micAnimationFrame = null
+    }
+    
+    // Stop microphone stream
+    if (this.micStream) {
+      this.micStream.getTracks().forEach(track => track.stop())
+      this.micStream = null
+    }
+    
+    this.micAnalyser = null
+  }
+
+  animateMicBars() {
+    if (!this.micAnalyser) return
+    
+    const bars = document.querySelectorAll('.mic-bar')
+    const dataArray = new Uint8Array(this.micAnalyser.frequencyBinCount)
+    
+    const animate = () => {
+      if (!this.micAnalyser) return
+      
+      this.micAnalyser.getByteFrequencyData(dataArray)
+      
+      // Calculate average volume
+      const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
+      
+      // Update bars based on frequency data
+      bars.forEach((bar, index) => {
+        const dataIndex = Math.floor(index * dataArray.length / bars.length)
+        const value = dataArray[dataIndex] || 0
+        
+        // Scale the height (min 8px, max 48px)
+        const height = Math.max(8, (value / 255) * 48)
+        bar.style.height = `${height}px`
+        
+        // Add active class if there's significant audio
+        if (value > 30) {
+          bar.classList.add('active')
+        } else {
+          bar.classList.remove('active')
+        }
+      })
+      
+      this.micAnimationFrame = requestAnimationFrame(animate)
+    }
+    
+    animate()
   }
 
   showMultiAccountSuccessModal(payload) {}

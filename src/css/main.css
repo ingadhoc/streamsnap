@@ -12,6 +12,21 @@
   display: none;
 }
 
+/* Microphone visualizer bars */
+.mic-bar {
+  width: 4px;
+  height: 8px;
+  background: linear-gradient(to top, #3b82f6, #60a5fa);
+  border-radius: 2px;
+  transition: height 0.1s ease;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.mic-bar.active {
+  background: linear-gradient(to top, #10b981, #34d399);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.5);
+}
+
 input[type='checkbox']:checked + label .toggle-bg {
   background: linear-gradient(to right, #3b82f6, #2563eb);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
