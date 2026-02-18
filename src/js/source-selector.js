@@ -354,7 +354,8 @@ class SourceSelector {
 
     const sourceData = {
       id: this.selectedSource.id,
-      name: this.selectedSource.name
+      name: this.selectedSource.name,
+      display_index: this.selectedSource.display_index
     }
 
     const startBtn = document.getElementById('startRecordingBtn')

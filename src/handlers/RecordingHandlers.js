@@ -279,33 +279,8 @@ class RecordingHandlers {
       const sel = this.app.recordingManager.selectedSource
       const displays = screen.getAllDisplays()
 
-      if (sel) {
-        const explicit = sel.display_id || sel.displayId || sel.display
-        if (explicit != null) {
-          const parsed = Number(explicit)
-          const match = displays.find(d => d.id === parsed) || displays[parsed]
-          if (match) {
-            targetDisplay = match
-          }
-        } else if (sel.id) {
-          const patterns = [/screen:(\d+)/i, /screen-(\d+)/i, /:([0-9]+)$/i]
-          for (const p of patterns) {
-            const m = String(sel.id).match(p)
-            if (m && m[1]) {
-              const parsed = Number(m[1])
-              const byId = displays.find(d => d.id === parsed)
-              const byIndex = displays[parsed]
-              if (byId) {
-                targetDisplay = byId
-                break
-              }
-              if (byIndex) {
-                targetDisplay = byIndex
-                break
-              }
-            }
-          }
-        }
+      if (sel && sel.display_index != null && displays[sel.display_index]) {
+        targetDisplay = displays[sel.display_index]
       }
     } catch (e) {}
     return targetDisplay
