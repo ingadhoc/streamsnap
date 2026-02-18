@@ -28,7 +28,9 @@ const WINDOW_CONFIG = {
   save: {
     width: 600,
     height: 550,
-    resizable: false
+    resizable: true,
+    minWidth: 500,
+    minHeight: 400
   },
   sourceSelector: {
     width: 900,
