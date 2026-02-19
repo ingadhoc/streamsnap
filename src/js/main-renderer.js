@@ -67,6 +67,14 @@ class ScreenRecorder {
       this.keyboardShortcuts = new window.KeyboardShortcutsManager(this)
       this.keyboardShortcuts.init()
     }
+
+    // Show mic/webcam tests if already enabled
+    if (this.settingsManager.settings.recordMicrophone) {
+      this.showMicTest()
+    }
+    if (this.settingsManager.settings.recordWebcam) {
+      this.showWebcamTest()
+    }
   }
 
   setupSettingsControls() {
