@@ -32,8 +32,8 @@ class WindowManager {
       const workArea = targetDisplay.workArea || targetDisplay.bounds || {}
       const originX = typeof workArea.x === 'number' ? workArea.x : 0
       const originY = typeof workArea.y === 'number' ? workArea.y : 0
-      const screenW = workArea.width || screen.getPrimaryDisplay().workAreaSize.width
-      const screenH = workArea.height || screen.getPrimaryDisplay().workAreaSize.height
+      const screenW = workArea.width || targetDisplay.size?.width || targetDisplay.bounds?.width || screen.getPrimaryDisplay().workAreaSize.width
+      const screenH = workArea.height || targetDisplay.size?.height || targetDisplay.bounds?.height || screen.getPrimaryDisplay().workAreaSize.height
 
       const winWidth = WINDOW_CONFIG.countdown.width
       const winHeight = WINDOW_CONFIG.countdown.height
@@ -137,8 +137,8 @@ class WindowManager {
       const workArea = targetDisplay.workArea || targetDisplay.bounds || {}
       const originX = typeof workArea.x === 'number' ? workArea.x : 0
       const originY = typeof workArea.y === 'number' ? workArea.y : 0
-      const screenW = workArea.width || screen.getPrimaryDisplay().workAreaSize.width
-      const screenH = workArea.height || screen.getPrimaryDisplay().workAreaSize.height
+      const screenW = workArea.width || targetDisplay.size?.width || targetDisplay.bounds?.width || screen.getPrimaryDisplay().workAreaSize.width
+      const screenH = workArea.height || targetDisplay.size?.height || targetDisplay.bounds?.height || screen.getPrimaryDisplay().workAreaSize.height
 
       const hasWebcam = !!(settings && (settings.recordWebcam || settings.defaultRecordWebcam))
       let winWidth = 240

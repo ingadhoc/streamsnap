@@ -1,6 +1,7 @@
 class SettingsManager {
   constructor() {
     this.settings = {
+      startShortcut: '',
       pauseShortcut: '',
       stopShortcut: '',
       discardShortcut: '',

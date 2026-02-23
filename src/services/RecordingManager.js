@@ -19,6 +19,8 @@ class RecordingManager {
       }
 
       const allSources = []
+      const { screen } = require('electron')
+      const displays = screen.getAllDisplays()
 
       try {
         const sources1 = await desktopCapturer.getSources({
@@ -62,7 +64,18 @@ class RecordingManager {
         }
       })
 
-      const serializedSources = uniqueSources.map(source => {
+      // Separate screens and windows
+      const screens = uniqueSources.filter(s => s.id.startsWith('screen:'))
+      const windows = uniqueSources.filter(s => !s.id.startsWith('screen:'))
+
+      // On Linux, desktopCapturer returns screens in reverse order compared to display order
+      // Reverse to match the physical left-to-right ordering
+      const orderedScreens = this.platform === 'linux' ? [...screens].reverse() : screens
+
+      const serializedSources = []
+      
+      // Map screens to displays by index
+      orderedScreens.forEach((source, index) => {
         let thumbnailData = null
 
         if (source.thumbnail && !source.thumbnail.isEmpty()) {
@@ -78,12 +91,36 @@ class RecordingManager {
           thumbnailData = { isEmpty: true }
         }
 
-        return {
+        serializedSources.push({
           id: source.id,
           name: source.name,
           thumbnail: thumbnailData,
-          display_id: source.display_id
+          display_index: index
+        })
+      })
+
+      // Add windows
+      windows.forEach(source => {
+        let thumbnailData = null
+
+        if (source.thumbnail && !source.thumbnail.isEmpty()) {
+          try {
+            thumbnailData = {
+              dataURL: source.thumbnail.toDataURL(),
+              isEmpty: false
+            }
+          } catch (err) {
+            thumbnailData = { isEmpty: true }
+          }
+        } else {
+          thumbnailData = { isEmpty: true }
         }
+
+        serializedSources.push({
+          id: source.id,
+          name: source.name,
+          thumbnail: thumbnailData
+        })
       })
 
       return serializedSources
