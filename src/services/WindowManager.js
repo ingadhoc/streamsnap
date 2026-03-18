@@ -167,7 +167,7 @@ class WindowManager {
         transparent: true,
         backgroundColor: '#00000000',
         hasShadow: false,
-        focusable: false,
+        focusable: true,
         acceptFirstMouse: true,
         opacity: 1.0,
         vibrancy: 'dark', // macOS only, helps with transparency
@@ -212,9 +212,13 @@ class WindowManager {
         this.windows.floating.setIgnoreMouseEvents(false)
       } catch (e) {}
 
-      if (settings.movableControls) {
+      try {
+        this.windows.floating.setContentProtection(true)
+      } catch (e) {}
+
+      try {
         this.windows.floating.setMovable(true)
-      }
+      } catch (e) {}
 
       this.windows.floating.on('closed', () => {
         this.windows.floating = null
@@ -700,6 +704,34 @@ class WindowManager {
     if (this.windows.floating && !this.windows.floating.isDestroyed()) {
       const [currentX, currentY] = this.windows.floating.getPosition()
       this.windows.floating.setPosition(currentX + deltaX, currentY + deltaY)
+    }
+  }
+
+  startFloatingDrag() {
+    if (this._dragInterval) clearInterval(this._dragInterval)
+    if (!this.windows.floating || this.windows.floating.isDestroyed()) return
+
+    const cursor = screen.getCursorScreenPoint()
+    const [winX, winY] = this.windows.floating.getPosition()
+    this._dragOffsetX = cursor.x - winX
+    this._dragOffsetY = cursor.y - winY
+
+    this._dragInterval = setInterval(() => {
+      if (!this.windows.floating || this.windows.floating.isDestroyed()) {
+        return this.stopFloatingDrag()
+      }
+      const pos = screen.getCursorScreenPoint()
+      this.windows.floating.setPosition(
+        Math.round(pos.x - this._dragOffsetX),
+        Math.round(pos.y - this._dragOffsetY)
+      )
+    }, 16)
+  }
+
+  stopFloatingDrag() {
+    if (this._dragInterval) {
+      clearInterval(this._dragInterval)
+      this._dragInterval = null
     }
   }
 
