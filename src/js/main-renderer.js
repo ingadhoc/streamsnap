@@ -375,7 +375,18 @@ class ScreenRecorder {
 
       try {
         const micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        return new MediaStream([...videoStream.getVideoTracks(), ...micStream.getAudioTracks()])
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext
+        if (!AudioContextClass) {
+          return new MediaStream([...videoStream.getVideoTracks(), ...micStream.getAudioTracks()])
+        }
+        const audioContext = new AudioContext()
+        const destination = audioContext.createMediaStreamDestination()
+        const micSource = audioContext.createMediaStreamSource(micStream)
+        const micGain = audioContext.createGain()
+        micGain.gain.value = 2.0
+        micSource.connect(micGain).connect(destination)
+        this.recordingState.audioContext = audioContext
+        return new MediaStream([...videoStream.getVideoTracks(), ...destination.stream.getAudioTracks()])
       } catch (micError) {
         alert('Microphone access denied. Recording video only.')
         return videoStream
@@ -444,7 +455,7 @@ class ScreenRecorder {
 
       const micSource = audioContext.createMediaStreamSource(micStream)
       const micGain = audioContext.createGain()
-      micGain.gain.value = 1.0
+      micGain.gain.value = 2.0
       micSource.connect(micGain).connect(destination)
 
       this.recordingState.audioContext = audioContext
