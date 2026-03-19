@@ -1,6 +1,7 @@
 class SaveVideoHandler {
   constructor() {
     this.videoBlob = null
+    this.videoObjectUrl = null
     this.saveOptions = {}
     this.selectedLocalFolder = null
     this.activeAccounts = []
@@ -66,6 +67,14 @@ class SaveVideoHandler {
       })
     }
 
+    if (window.electronAPI && window.electronAPI.onVideoTrimmed) {
+      window.electronAPI.onVideoTrimmed(async () => {
+        this.videoBlob = null
+        await this.loadVideoData()
+        this.showSuccess('Video trimmed successfully')
+      })
+    }
+
     this.setupDriveAccountsListener()
   }
 
@@ -101,6 +110,7 @@ class SaveVideoHandler {
     const addMoreAccountsBtn = document.getElementById('addMoreAccountsBtn')
     const manageYouTubeAccountsBtn = document.getElementById('manageYouTubeAccountsBtn')
     const addMoreYouTubeAccountsBtn = document.getElementById('addMoreYouTubeAccountsBtn')
+    const editVideoBtn = document.getElementById('editVideoBtn')
 
     discardBtn.addEventListener('click', () => this.discardVideo())
     localSaveBtn.addEventListener('click', () => this.saveToLocal())
@@ -117,6 +127,10 @@ class SaveVideoHandler {
 
     if (addMoreYouTubeAccountsBtn) {
       addMoreYouTubeAccountsBtn.addEventListener('click', () => this.manageYouTubeAccounts())
+    }
+
+    if (editVideoBtn) {
+      editVideoBtn.addEventListener('click', () => this.openVideoEditor())
     }
 
     const now = new Date()
@@ -505,6 +519,32 @@ class SaveVideoHandler {
     }
   }
 
+  async openVideoEditor() {
+    try {
+      if (!window.electronAPI || !window.electronAPI.openVideoEditor) {
+        this.showError('Video editor is not available')
+        return
+      }
+
+      const result = await window.electronAPI.openVideoEditor()
+      if (!result || !result.success) {
+        this.showError(result?.error || 'Unable to open video editor')
+      }
+    } catch (error) {
+      this.showError('Failed to open video editor')
+    }
+  }
+
+  setPreviewVideoSource(video, blobData) {
+    if (this.videoObjectUrl) {
+      URL.revokeObjectURL(this.videoObjectUrl)
+      this.videoObjectUrl = null
+    }
+
+    this.videoObjectUrl = URL.createObjectURL(new Blob([blobData], { type: 'video/mp4' }))
+    video.src = this.videoObjectUrl
+  }
+
   async loadVideoData() {
     try {
       const video = document.getElementById('previewVideo')
@@ -518,7 +558,7 @@ class SaveVideoHandler {
 
           if (videoBlob) {
             this.videoBlob = videoBlob
-            video.src = URL.createObjectURL(new Blob([videoBlob], { type: 'video/mp4' }))
+            this.setPreviewVideoSource(video, videoBlob)
 
             const recordedDuration = data.recordedDuration
             if (recordedDuration && recordedDuration > 0) {
@@ -587,6 +627,13 @@ class SaveVideoHandler {
         await window.electronAPI.discardRecordedVideo()
       }
     } catch (e) {}
+  }
+
+  cleanupPreviewResources() {
+    if (this.videoObjectUrl) {
+      URL.revokeObjectURL(this.videoObjectUrl)
+      this.videoObjectUrl = null
+    }
   }
 
   showDefaultOptions() {
@@ -930,4 +977,10 @@ class SaveVideoHandler {
 
 document.addEventListener('DOMContentLoaded', () => {
   window.saveVideoHandler = new SaveVideoHandler()
+})
+
+window.addEventListener('beforeunload', () => {
+  if (window.saveVideoHandler && typeof window.saveVideoHandler.cleanupPreviewResources === 'function') {
+    window.saveVideoHandler.cleanupPreviewResources()
+  }
 })

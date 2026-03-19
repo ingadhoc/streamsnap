@@ -56,7 +56,8 @@ class RecordingManager {
             source.name.includes('StreamSnap') ||
             source.name.includes('Select Recording Source') ||
             source.name.includes('streamsnap') ||
-            source.name.includes('Save Recording')
+            source.name.includes('Save Recording') ||
+            source.name.includes('Video Editor')
 
           if (!isOwnWindow) {
             uniqueSources.push(source)

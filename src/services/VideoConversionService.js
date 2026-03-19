@@ -84,6 +84,52 @@ class VideoConversionService {
         .save(outputPath)
     })
   }
+
+  static trimVideo(inputPath, outputPath, startTime, endTime, options = {}) {
+    const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 10 * 60 * 1000
+    const safeStart = Math.max(0, Number(startTime) || 0)
+    const safeEnd = Math.max(0, Number(endTime) || 0)
+    const duration = safeEnd - safeStart
+
+    if (!Number.isFinite(duration) || duration <= 0) {
+      return Promise.reject(new Error('Invalid trim duration'))
+    }
+
+    return new Promise((resolve, reject) => {
+      const command = ffmpeg(inputPath)
+      let settled = false
+
+      const timeout = setTimeout(() => {
+        if (settled) return
+        settled = true
+        try {
+          command.kill('SIGKILL')
+        } catch (e) {}
+        reject(new Error('Video trim timed out'))
+      }, timeoutMs)
+
+      command
+        .inputOptions(['-nostdin'])
+        .setStartTime(safeStart)
+        .setDuration(duration)
+        .videoCodec('libx264')
+        .audioCodec('aac')
+        .outputOptions(['-preset veryfast', '-crf 22', '-movflags +faststart'])
+        .on('end', () => {
+          if (settled) return
+          settled = true
+          clearTimeout(timeout)
+          resolve(outputPath)
+        })
+        .on('error', error => {
+          if (settled) return
+          settled = true
+          clearTimeout(timeout)
+          reject(error)
+        })
+        .save(outputPath)
+    })
+  }
 }
 
 module.exports = VideoConversionService

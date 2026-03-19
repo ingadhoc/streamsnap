@@ -110,6 +110,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resizeFloatingWindow: (width, height) => ipcRenderer.invoke('resize-floating-window', width, height),
   minimizeMain: () => ipcRenderer.invoke('minimize-main'),
   closeSaveWindow: () => ipcRenderer.invoke('close-save-window'),
+  openVideoEditor: () => ipcRenderer.invoke('open-video-editor'),
+  closeVideoEditor: () => ipcRenderer.invoke('close-video-editor'),
+  trimRecordedVideo: options => ipcRenderer.invoke('trim-recorded-video', options),
+
+  getVideoEditorOptions: () => {
+    try {
+      const b64Arg = process.argv.find(a => a && a.startsWith('--video-editor-options-b64='))
+      if (b64Arg) {
+        const b64 = b64Arg.split('=')[1]
+        const jsonStr = Buffer.from(b64, 'base64').toString('utf8')
+        return JSON.parse(jsonStr)
+      }
+    } catch (e) {}
+    return null
+  },
 
   onStopRecording: callback => ipcRenderer.on('stop-recording-event', callback),
   onPauseRecording: callback => ipcRenderer.on('pause-recording-event', callback),
@@ -121,6 +136,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onInitSaveOptions: callback => {
     ipcRenderer.on('init-save-options', (event, data) => {
+      try {
+        callback(data)
+      } catch (e) {}
+    })
+  },
+
+  onInitVideoEditorOptions: callback => {
+    ipcRenderer.on('init-video-editor-options', (event, data) => {
       try {
         callback(data)
       } catch (e) {}
@@ -169,6 +192,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onRecordingConversionProgress: callback => {
     ipcRenderer.on('recording-conversion-progress', (event, data) => {
+      try {
+        callback(data)
+      } catch (e) {}
+    })
+  },
+
+  onVideoTrimmed: callback => {
+    ipcRenderer.on('video-trimmed', (event, data) => {
       try {
         callback(data)
       } catch (e) {}

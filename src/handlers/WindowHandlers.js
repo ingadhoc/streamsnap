@@ -124,6 +124,31 @@ class WindowHandlers {
       return { success: true }
     })
 
+    ipcMain.handle('open-video-editor', async () => {
+      try {
+        const videoPath = this.app.recordingManager.getRecordedVideoPath()
+        const duration = this.app.recordingManager.getRecordedVideoDuration()
+
+        const win = await this.app.windowManager.createVideoEditorWindow({
+          tempVideoPath: videoPath || null,
+          duration: duration || null
+        })
+
+        if (!win) {
+          return { success: false, error: 'Window not created' }
+        }
+
+        return { success: true }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
+
+    ipcMain.handle('close-video-editor', () => {
+      this.app.windowManager.closeWindow('videoEditor')
+      return { success: true }
+    })
+
     ipcMain.handle('show-main-window', () => {
       try {
         this.app.windowManager.showMainWindow()
