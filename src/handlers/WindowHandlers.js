@@ -143,6 +143,11 @@ class WindowHandlers {
       const sel = this.app.recordingManager.selectedSource
       const displays = screen.getAllDisplays()
 
+      if (sel && sel.display_id != null) {
+        const matchById = displays.find(display => String(display.id) === String(sel.display_id))
+        if (matchById) return matchById
+      }
+
       if (sel && sel.display_index != null && displays[sel.display_index]) {
         targetDisplay = displays[sel.display_index]
       }

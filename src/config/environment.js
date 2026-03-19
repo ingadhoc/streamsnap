@@ -3,25 +3,26 @@ const fs = require('fs')
 const { GOOGLE_SCOPES, OAUTH_CONFIG, GOOGLE_URLS } = require('./constants')
 
 try {
-  let dotenvPath = path.resolve(process.cwd(), '.env')
-  let loaded = false
+  const candidatePaths = [path.resolve(process.cwd(), '.env')]
 
-  if (fs.existsSync(dotenvPath)) {
-    require('dotenv').config({ path: dotenvPath })
-    loaded = true
-  }
+  try {
+    const electron = require('electron')
+    const appPath = electron.app ? electron.app.getAppPath() : electron.remote && electron.remote.app.getAppPath()
+    if (appPath) {
+      candidatePaths.push(path.join(appPath, '.env'))
+      candidatePaths.push(path.join(path.dirname(appPath), '.env'))
+    }
 
-  if (!loaded) {
-    try {
-      const electron = require('electron')
-      const appPath = electron.app ? electron.app.getAppPath() : electron.remote && electron.remote.app.getAppPath()
-      if (appPath) {
-        dotenvPath = path.join(appPath, '.env')
-        if (fs.existsSync(dotenvPath)) {
-          require('dotenv').config({ path: dotenvPath })
-        }
-      }
-    } catch (e) {}
+    if (process.resourcesPath) {
+      candidatePaths.push(path.join(process.resourcesPath, '.env'))
+    }
+  } catch (e) {}
+
+  for (const dotenvPath of candidatePaths) {
+    if (dotenvPath && fs.existsSync(dotenvPath)) {
+      require('dotenv').config({ path: dotenvPath })
+      break
+    }
   }
 } catch (e) {}
 
@@ -32,8 +33,7 @@ class Environment {
 
   loadConfig() {
     this.google = {
-      clientId:
-        process.env.GOOGLE_CLIENT_ID || '498128796531-2ji3a3uojcj39q7bohao555gin28nb1p.apps.googleusercontent.com',
+      clientId: process.env.GOOGLE_CLIENT_ID || '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || this.getDefaultClientSecret(),
       scopes: GOOGLE_SCOPES
     }

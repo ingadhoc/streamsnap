@@ -4,6 +4,11 @@ class CountdownRenderer {
     this.isRunning = false
     this.currentInterval = null
 
+    if (this.countdownNumber) {
+      this.countdownNumber.textContent = ''
+      this.countdownNumber.classList.remove('active')
+    }
+
     this.setupEventListeners()
   }
 
@@ -27,9 +32,11 @@ class CountdownRenderer {
     }
 
     this.isRunning = true
-    let currentNumber = duration
+    const parsedDuration = Number.isFinite(Number(duration)) ? Math.floor(Number(duration)) : 5
+    let currentNumber = Math.max(1, parsedDuration)
 
-    this.countdownNumber.textContent = currentNumber
+    this.countdownNumber.textContent = String(currentNumber)
+    this.countdownNumber.classList.add('active')
 
     this.currentInterval = setInterval(() => {
       currentNumber--
@@ -73,6 +80,7 @@ class CountdownRenderer {
 
     if (this.countdownNumber) {
       this.countdownNumber.classList.remove('pulse')
+      this.countdownNumber.classList.remove('active')
     }
   }
 }

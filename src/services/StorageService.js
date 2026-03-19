@@ -25,7 +25,7 @@ class StorageService {
 
   async showSaveDialog(parentWindow = null, defaultFileName = null) {
     try {
-      const fileName = defaultFileName || `Recording-${Date.now()}.webm`
+      const fileName = defaultFileName || `Recording-${Date.now()}.mp4`
 
       const result = await dialog.showSaveDialog(parentWindow, {
         title: 'Save Recording',

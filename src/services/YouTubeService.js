@@ -1,31 +1,15 @@
 const { shell } = require('electron')
-const { google } = require('googleapis')
 const http = require('http')
 const crypto = require('crypto')
-const { Readable } = require('stream')
 const environment = require('../config/environment')
 const YouTubeAccountManager = require('./YouTubeAccountManager')
 
 class YouTubeService {
   constructor() {
-    this.oauth2Client = null
-    this.youtube = null
     this.isAuthenticatedFlag = false
     this.accessToken = null
     this.refreshToken = null
     this.tokenExpiry = null
-  }
-
-  initializeOAuthClient() {
-    if (!this.oauth2Client) {
-      const { OAuth2 } = google.auth
-      this.oauth2Client = new OAuth2(
-        environment.google.clientId,
-        environment.google.clientSecret,
-        'http://localhost:3000/oauth2callback'
-      )
-    }
-    return this.oauth2Client
   }
 
   async authenticate() {
@@ -67,11 +51,6 @@ class YouTubeService {
     this.tokenExpiry = Date.now() + tokens.expires_in * 1000
     this.isAuthenticatedFlag = true
 
-    const authClient = this.initializeOAuthClient()
-    authClient.setCredentials(tokens)
-    this.oauth2Client = authClient
-    this.youtube = google.youtube({ version: 'v3', auth: authClient })
-
     return {
       success: true,
       accessToken: this.accessToken,
@@ -92,6 +71,7 @@ class YouTubeService {
             const url = new URL(req.url, `http://127.0.0.1:${port}`)
             const error = url.searchParams.get('error')
             const code = url.searchParams.get('code')
+            const state = url.searchParams.get('state')
 
             res.writeHead(200, { 'Content-Type': 'text/html' })
             res.end(`
@@ -128,6 +108,8 @@ class YouTubeService {
 
             if (error) {
               reject(new Error(`OAuth error: ${error}`))
+            } else if (state !== expectedState) {
+              reject(new Error('Invalid OAuth state received'))
             } else if (code) {
               resolve(code)
             } else {
@@ -183,12 +165,30 @@ class YouTubeService {
   setTokens(tokens) {
     this.accessToken = tokens.access_token
     this.refreshToken = tokens.refresh_token
-    this.tokenExpiry = tokens.expiry_date
+    this.tokenExpiry = tokens.expiry_date || Date.now() + (tokens.expires_in || 3600) * 1000
     this.isAuthenticatedFlag = true
+  }
 
-    const authClient = this.initializeOAuthClient()
-    authClient.setCredentials(tokens)
-    this.youtube = google.youtube({ version: 'v3', auth: authClient })
+  async refreshTokenFromGoogle(refreshToken) {
+    const body = new URLSearchParams({
+      client_id: environment.google.clientId,
+      client_secret: environment.google.clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken
+    })
+
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    })
+
+    if (!response.ok) {
+      const errorData = await response.text()
+      throw new Error(`Token refresh failed: ${response.status} - ${errorData}`)
+    }
+
+    return response.json()
   }
 
   async refreshAccessToken(accountId) {
@@ -197,19 +197,16 @@ class YouTubeService {
       throw new Error('No refresh token available')
     }
 
-    const authClient = this.initializeOAuthClient()
-    authClient.setCredentials({
-      refresh_token: account.refreshToken
-    })
-
-    const { credentials } = await authClient.refreshAccessToken()
+    const refreshed = await this.refreshTokenFromGoogle(account.refreshToken)
+    const accessToken = refreshed.access_token
+    const tokenExpiry = Date.now() + (refreshed.expires_in || 3600) * 1000
 
     YouTubeAccountManager.updateAccount(accountId, {
-      accessToken: credentials.access_token,
-      tokenExpiry: credentials.expiry_date
+      accessToken,
+      tokenExpiry
     })
 
-    return credentials.access_token
+    return accessToken
   }
 
   async ensureValidAccessToken(accountId) {
@@ -238,58 +235,91 @@ class YouTubeService {
         throw new Error('Account not found')
       }
 
-      const authClient = this.initializeOAuthClient()
-      authClient.setCredentials({
-        access_token: account.accessToken,
-        refresh_token: account.refreshToken
-      })
-
-      const youtube = google.youtube({ version: 'v3', auth: authClient })
+      const latestAccount = YouTubeAccountManager.getAccountById(accountId) || account
+      const accessToken = latestAccount.accessToken
+      if (!accessToken) {
+        throw new Error('No access token available')
+      }
 
       const privacyStatus = options.privacy || 'private'
 
       const videoBuffer = Buffer.from(videoData)
-      const videoStream = Readable.from(videoBuffer)
-
-      const response = await youtube.videos.insert({
-        part: ['snippet', 'status'],
-        requestBody: {
-          snippet: {
-            title: title,
-            description: description || 'Uploaded with StreamSnap',
-            categoryId: '22'
-          },
-          status: {
-            privacyStatus: privacyStatus
-          }
+      const boundary = `streamsnap-${crypto.randomBytes(12).toString('hex')}`
+      const metadata = {
+        snippet: {
+          title: title,
+          description: description || 'Uploaded with StreamSnap',
+          categoryId: '22'
         },
-        media: {
-          mimeType: 'video/webm',
-          body: videoStream
+        status: {
+          privacyStatus: privacyStatus
         }
-      })
+      }
+
+      const metadataPart = Buffer.from(
+        `--${boundary}\r\n` +
+          'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+          `${JSON.stringify(metadata)}\r\n`
+      )
+      const videoHeaderPart = Buffer.from(
+        `--${boundary}\r\n` +
+          'Content-Type: video/mp4\r\n\r\n'
+      )
+      const closingPart = Buffer.from(`\r\n--${boundary}--\r\n`)
+      const requestBody = Buffer.concat([metadataPart, videoHeaderPart, videoBuffer, closingPart])
+
+      const uploadResponse = await fetch(
+        'https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status&uploadType=multipart',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': `multipart/related; boundary=${boundary}`
+          },
+          body: requestBody
+        }
+      )
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.text()
+        throw new Error(`YouTube upload failed: ${uploadResponse.status} - ${errorData}`)
+      }
+
+      const responseData = await uploadResponse.json()
+      const videoId = responseData.id
+      if (!videoId) {
+        throw new Error('Upload succeeded but no video ID was returned')
+      }
 
       if (options.playlistId) {
         try {
-          await youtube.playlistItems.insert({
-            part: ['snippet'],
-            requestBody: {
+          const playlistResponse = await fetch('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
               snippet: {
                 playlistId: options.playlistId,
                 resourceId: {
                   kind: 'youtube#video',
-                  videoId: response.data.id
+                  videoId
                 }
               }
-            }
+            })
           })
+
+          if (!playlistResponse.ok) {
+            await playlistResponse.text()
+          }
         } catch (playlistError) {}
       }
 
       return {
         success: true,
-        videoId: response.data.id,
-        videoUrl: `https://www.youtube.com/watch?v=${response.data.id}`
+        videoId,
+        videoUrl: `https://www.youtube.com/watch?v=${videoId}`
       }
     } catch (error) {
       return {
@@ -308,24 +338,29 @@ class YouTubeService {
         throw new Error('Account not found')
       }
 
-      const authClient = this.initializeOAuthClient()
-      authClient.setCredentials({
-        access_token: account.accessToken,
-        refresh_token: account.refreshToken
+      const latestAccount = YouTubeAccountManager.getAccountById(accountId) || account
+      const accessToken = latestAccount.accessToken
+      if (!accessToken) {
+        throw new Error('No access token available')
+      }
+
+      const response = await fetch('https://www.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&maxResults=50', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
       })
 
-      const youtube = google.youtube({ version: 'v3', auth: authClient })
+      if (!response.ok) {
+        const errorData = await response.text()
+        throw new Error(`Failed to fetch playlists: ${response.status} - ${errorData}`)
+      }
 
-      const response = await youtube.playlists.list({
-        part: ['snippet'],
-        mine: true,
-        maxResults: 50
-      })
+      const data = await response.json()
 
-      if (response.data.items) {
+      if (data.items) {
         return {
           success: true,
-          playlists: response.data.items.map(playlist => ({
+          playlists: data.items.map(playlist => ({
             id: playlist.id,
             title: playlist.snippet.title,
             thumbnail: playlist.snippet.thumbnails?.default?.url
@@ -341,7 +376,7 @@ class YouTubeService {
 
   async getChannelInfo(accessTokenOrAccountId) {
     try {
-      let authClient = this.initializeOAuthClient()
+      let accessToken = null
 
       if (typeof accessTokenOrAccountId === 'string' && accessTokenOrAccountId.length < 100) {
         const account = YouTubeAccountManager.getAccountById(accessTokenOrAccountId)
@@ -349,26 +384,31 @@ class YouTubeService {
           throw new Error('Account not found')
         }
         await this.ensureValidAccessToken(accessTokenOrAccountId)
-
-        authClient.setCredentials({
-          access_token: account.accessToken,
-          refresh_token: account.refreshToken
-        })
+        const latestAccount = YouTubeAccountManager.getAccountById(accessTokenOrAccountId) || account
+        accessToken = latestAccount.accessToken
       } else {
-        authClient.setCredentials({
-          access_token: accessTokenOrAccountId
-        })
+        accessToken = accessTokenOrAccountId
       }
 
-      const youtube = google.youtube({ version: 'v3', auth: authClient })
+      if (!accessToken) {
+        throw new Error('No access token available')
+      }
 
-      const response = await youtube.channels.list({
-        part: ['snippet', 'contentDetails', 'statistics'],
-        mine: true
+      const response = await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails,statistics&mine=true', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
       })
 
-      if (response.data.items && response.data.items.length > 0) {
-        const channel = response.data.items[0]
+      if (!response.ok) {
+        const errorData = await response.text()
+        throw new Error(`Failed to fetch channel info: ${response.status} - ${errorData}`)
+      }
+
+      const data = await response.json()
+
+      if (data.items && data.items.length > 0) {
+        const channel = data.items[0]
         return {
           success: true,
           channelId: channel.id,
@@ -379,7 +419,7 @@ class YouTubeService {
 
       const peopleResponse = await fetch('https://people.googleapis.com/v1/people/me?personFields=emailAddresses', {
         headers: {
-          Authorization: `Bearer ${authClient.credentials.access_token}`
+          Authorization: `Bearer ${accessToken}`
         }
       })
 
@@ -395,7 +435,12 @@ class YouTubeService {
           'No YouTube channel found. A browser window has been opened to create one. After creating your channel, please try again.',
         needsChannel: true
       }
-    } catch (error) {}
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Failed to get channel information'
+      }
+    }
   }
 
   isAuthenticated() {
@@ -403,8 +448,6 @@ class YouTubeService {
   }
 
   signOut() {
-    this.oauth2Client = null
-    this.youtube = null
     this.isAuthenticatedFlag = false
     this.accessToken = null
     this.refreshToken = null

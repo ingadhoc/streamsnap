@@ -518,7 +518,7 @@ class DriveService {
 
       const metadata = {
         name: fileName,
-        mimeType: 'video/webm',
+        mimeType: 'video/mp4',
         parents: [folderId]
       }
 
@@ -533,7 +533,7 @@ class DriveService {
         'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
         JSON.stringify(metadata) +
         delimiter +
-        'Content-Type: video/webm\r\n' +
+        'Content-Type: video/mp4\r\n' +
         'Content-Transfer-Encoding: base64\r\n\r\n' +
         base64Data +
         closeDelim

@@ -1,4 +1,5 @@
 const { ipcMain, screen } = require('electron')
+const VideoConversionService = require('../services/VideoConversionService')
 
 class RecordingHandlers {
   constructor(app) {
@@ -137,12 +138,49 @@ class RecordingHandlers {
         await fs.mkdir(tempDir, { recursive: true })
 
         const timestamp = Date.now()
-        const tempFilePath = path.join(tempDir, `recording-${timestamp}.webm`)
+        const tempWebmPath = path.join(tempDir, `recording-${timestamp}.webm`)
+        const tempMp4Path = path.join(tempDir, `recording-${timestamp}.mp4`)
 
         const buffer = Buffer.from(videoBuffer)
-        await fs.writeFile(tempFilePath, buffer)
+        await fs.writeFile(tempWebmPath, buffer)
 
-        this.app.recordingManager.setRecordedVideoPath(tempFilePath)
+        this.app.broadcastToWindows('recording-conversion-progress', {
+          stage: 'started',
+          percent: 0,
+          message: 'Converting to MP4...'
+        })
+
+        await VideoConversionService.convertWebmToMp4(tempWebmPath, tempMp4Path, progress => {
+          const rawPercent = typeof progress?.percent === 'number' ? progress.percent : null
+          const percent =
+            rawPercent == null
+              ? null
+              : Math.max(0, Math.min(100, Math.round(rawPercent)))
+          const timemark = typeof progress?.timemark === 'string' ? progress.timemark : null
+          const fallbackMessage = timemark
+            ? `Converting to MP4... (${timemark})`
+            : 'Converting to MP4...'
+
+          this.app.broadcastToWindows('recording-conversion-progress', {
+            stage: 'progress',
+            percent,
+            message: percent == null ? fallbackMessage : `Converting to MP4... ${percent}%`
+          })
+        }, {
+          timeoutMs: 20 * 60 * 1000
+        })
+
+        this.app.broadcastToWindows('recording-conversion-progress', {
+          stage: 'completed',
+          percent: 100,
+          message: 'MP4 conversion completed'
+        })
+
+        try {
+          await fs.unlink(tempWebmPath)
+        } catch (e) {}
+
+        this.app.recordingManager.setRecordedVideoPath(tempMp4Path)
 
         if (duration != null) {
           this.app.recordingManager.setRecordedVideoDuration(duration)
@@ -156,12 +194,16 @@ class RecordingHandlers {
           showDriveOption: Boolean(isDriveAvailable),
           showDriveSignIn: !this.app.driveService.isAuthenticated(),
           showLocalOption: true,
-          tempVideoPath: tempFilePath,
+          tempVideoPath: tempMp4Path,
           driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
         })
 
-        return { success: true, tempPath: tempFilePath }
+        return { success: true, tempPath: tempMp4Path, outputFormat: 'mp4' }
       } catch (error) {
+        this.app.broadcastToWindows('recording-conversion-progress', {
+          stage: 'failed',
+          message: error.message || 'Error during MP4 conversion'
+        })
         return { success: false, error: error.message }
       }
     })
@@ -278,6 +320,11 @@ class RecordingHandlers {
     try {
       const sel = this.app.recordingManager.selectedSource
       const displays = screen.getAllDisplays()
+
+      if (sel && sel.display_id != null) {
+        const matchById = displays.find(display => String(display.id) === String(sel.display_id))
+        if (matchById) return matchById
+      }
 
       if (sel && sel.display_index != null && displays[sel.display_index]) {
         targetDisplay = displays[sel.display_index]

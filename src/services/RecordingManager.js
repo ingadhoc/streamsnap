@@ -68,14 +68,40 @@ class RecordingManager {
       const screens = uniqueSources.filter(s => s.id.startsWith('screen:'))
       const windows = uniqueSources.filter(s => !s.id.startsWith('screen:'))
 
-      // On Linux, desktopCapturer returns screens in reverse order compared to display order
-      // Reverse to match the physical left-to-right ordering
-      const orderedScreens = this.platform === 'linux' ? [...screens].reverse() : screens
+      const displayIndexById = new Map(displays.map((display, index) => [String(display.id), index]))
+      const screenEntries = screens.map(source => ({
+        source,
+        displayId: source.display_id != null ? String(source.display_id) : null,
+        hasDisplayMatch:
+          source.display_id != null && displayIndexById.has(String(source.display_id))
+      }))
+
+      let orderedScreens = [...screenEntries]
+
+      // Prefer display_id ordering when available. Keep Linux fallback reverse only when IDs are unavailable.
+      if (orderedScreens.some(entry => entry.hasDisplayMatch)) {
+        orderedScreens.sort((a, b) => {
+          const aHas = a.hasDisplayMatch
+          const bHas = b.hasDisplayMatch
+
+          if (aHas && bHas) {
+            return displayIndexById.get(a.displayId) - displayIndexById.get(b.displayId)
+          }
+
+          if (aHas) return -1
+          if (bHas) return 1
+          return 0
+        })
+      } else if (this.platform === 'linux') {
+        // Linux fallback: desktopCapturer may return reverse order compared to display layout.
+        orderedScreens = orderedScreens.reverse()
+      }
 
       const serializedSources = []
       
-      // Map screens to displays by index
-      orderedScreens.forEach((source, index) => {
+      // Map screens with stable display metadata to avoid cross-display mismatches.
+      orderedScreens.forEach((entry, index) => {
+        const source = entry.source
         let thumbnailData = null
 
         if (source.thumbnail && !source.thumbnail.isEmpty()) {
@@ -91,11 +117,17 @@ class RecordingManager {
           thumbnailData = { isEmpty: true }
         }
 
+        const resolvedDisplayIndex =
+          entry.hasDisplayMatch && displayIndexById.has(entry.displayId)
+            ? displayIndexById.get(entry.displayId)
+            : index
+
         serializedSources.push({
           id: source.id,
           name: source.name,
           thumbnail: thumbnailData,
-          display_index: index
+          display_index: resolvedDisplayIndex,
+          display_id: entry.displayId
         })
       })
 

@@ -46,6 +46,7 @@ const WINDOW_CONFIG = {
 
 const FILE_FILTERS = {
   video: [
+    { name: 'MP4 Video', extensions: ['mp4'] },
     { name: 'WebM Video', extensions: ['webm'] },
     { name: 'All Files', extensions: ['*'] }
   ]
