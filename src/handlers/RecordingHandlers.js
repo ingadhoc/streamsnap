@@ -270,6 +270,67 @@ class RecordingHandlers {
       }
     })
 
+    ipcMain.handle('trim-recorded-video', async (event, options = {}) => {
+      const fs = require('fs').promises
+      const path = require('path')
+      const os = require('os')
+
+      try {
+        const startTime = Number(options.startTime)
+        const endTime = Number(options.endTime)
+
+        if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
+          return { success: false, error: 'Invalid trim range' }
+        }
+
+        let sourcePath = this.app.recordingManager.getRecordedVideoPath()
+        const inMemoryVideo = this.app.recordingManager.getRecordedVideoData()
+
+        if (!sourcePath) {
+          if (!inMemoryVideo) {
+            return { success: false, error: 'No recorded video available' }
+          }
+
+          const tempDir = path.join(os.tmpdir(), 'streamsnap-recordings')
+          await fs.mkdir(tempDir, { recursive: true })
+          sourcePath = path.join(tempDir, `recording-${Date.now()}-source.mp4`)
+          await fs.writeFile(sourcePath, Buffer.from(inMemoryVideo))
+          this.app.recordingManager.setRecordedVideoPath(sourcePath)
+        }
+
+        const sourceDir = path.dirname(sourcePath)
+        const outputPath = path.join(sourceDir, `recording-${Date.now()}-trimmed.mp4`)
+
+        await VideoConversionService.trimVideo(sourcePath, outputPath, startTime, endTime)
+
+        try {
+          if (sourcePath !== outputPath) {
+            await fs.unlink(sourcePath)
+          }
+        } catch (e) {}
+
+        const newDuration = Math.max(0, Math.floor(endTime - startTime))
+        this.app.recordingManager.setRecordedVideoData(null)
+        this.app.recordingManager.setRecordedVideoPath(outputPath)
+        this.app.recordingManager.setRecordedVideoDuration(newDuration)
+
+        const saveWindow = this.app.windowManager.getWindow('save')
+        if (saveWindow && !saveWindow.isDestroyed()) {
+          try {
+            saveWindow.webContents.send('video-trimmed', {
+              success: true,
+              duration: newDuration,
+              tempVideoPath: outputPath
+            })
+          } catch (e) {}
+        }
+
+        return { success: true, tempVideoPath: outputPath, duration: newDuration }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
+
     ipcMain.handle('get-main-window-data', async () => {
       const fs = require('fs').promises
 
@@ -284,11 +345,13 @@ class RecordingHandlers {
         }
 
         const duration = this.app.recordingManager.getRecordedVideoDuration()
-        return { recordedVideoBlob: recordedData, recordedDuration: duration }
+        const tempVideoPath = this.app.recordingManager.getRecordedVideoPath()
+        return { recordedVideoBlob: recordedData, recordedDuration: duration, tempVideoPath }
       } catch (error) {
         const recordedData = this.app.recordingManager.getRecordedVideoData()
         const duration = this.app.recordingManager.getRecordedVideoDuration()
-        return { recordedVideoBlob: recordedData, recordedDuration: duration }
+        const tempVideoPath = this.app.recordingManager.getRecordedVideoPath()
+        return { recordedVideoBlob: recordedData, recordedDuration: duration, tempVideoPath }
       }
     })
 

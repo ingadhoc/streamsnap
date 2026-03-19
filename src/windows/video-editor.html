@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Editor</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:;"
+    />
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="../css/video-editor.css" />
+  </head>
+  <body class="video-editor-body">
+    <main class="editor-shell">
+      <header class="editor-header">
+        <h1>Video Editor</h1>
+        <p>Edit your recording before saving.</p>
+      </header>
+
+      <section class="video-panel">
+        <video id="editorPreviewVideo" controls class="editor-video"></video>
+        <div class="video-meta">
+          <span id="totalDurationLabel">Total: --:--</span>
+          <span id="trimWindowLabel">Trim: --:-- to --:--</span>
+        </div>
+      </section>
+
+      <section class="controls-panel">
+        <div class="range-group">
+          <label for="trimStartRange">Start</label>
+          <input id="trimStartRange" type="range" min="0" max="0" value="0" step="0.1" />
+          <input id="trimStartInput" type="text" value="00:00" maxlength="5" class="time-input" aria-label="Start time in mm:ss" />
+        </div>
+
+        <div class="range-group">
+          <label for="trimEndRange">End</label>
+          <input id="trimEndRange" type="range" min="0" max="0" value="0" step="0.1" />
+          <input id="trimEndInput" type="text" value="00:00" maxlength="5" class="time-input" aria-label="End time in mm:ss" />
+        </div>
+
+        <div class="controls-actions">
+          <button id="previewTrimBtn" class="btn btn-ghost">Preview Selection</button>
+        </div>
+      </section>
+
+      <section id="editorError" class="editor-error hidden"></section>
+
+      <footer class="editor-actions">
+        <button id="cancelEditBtn" class="btn btn-secondary">Cancel</button>
+        <button id="applyTrimBtn" class="btn btn-primary">Apply Trim</button>
+      </footer>
+    </main>
+
+    <script src="../js/video-editor-renderer.js"></script>
+  </body>
+</html>

@@ -10,6 +10,7 @@ class WindowManager {
       floating: null,
       countdown: null,
       save: null,
+      videoEditor: null,
       sourceSelector: null,
       webcam: null,
       driveAccounts: null,
@@ -387,6 +388,86 @@ class WindowManager {
     })()
 
     return this._sourceSelectorCreating
+  }
+
+  async createVideoEditorWindow(options = {}) {
+    try {
+      if (this.windows.videoEditor && !this.windows.videoEditor.isDestroyed()) {
+        this.windows.videoEditor.focus()
+        return this.windows.videoEditor
+      }
+
+      const parentWindow = this.windows.save || this.windows.main || null
+      const parentBounds = parentWindow && !parentWindow.isDestroyed() ? parentWindow.getBounds() : null
+      const editorWidth = WINDOW_CONFIG.videoEditor?.width || 780
+      const editorHeight = WINDOW_CONFIG.videoEditor?.height || 620
+
+      let x
+      let y
+      if (parentBounds) {
+        x = parentBounds.x + Math.floor((parentBounds.width - editorWidth) / 2)
+        y = parentBounds.y + Math.floor((parentBounds.height - editorHeight) / 2)
+      }
+
+      this.windows.videoEditor = new BrowserWindow({
+        width: editorWidth,
+        height: editorHeight,
+        minWidth: WINDOW_CONFIG.videoEditor?.minWidth || 720,
+        minHeight: WINDOW_CONFIG.videoEditor?.minHeight || 560,
+        x,
+        y,
+        modal: false,
+        parent: parentWindow || undefined,
+        title: 'Video Editor',
+        icon: this.getAppIcon(),
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: this.preloadPath,
+          enableRemoteModule: false,
+          sandbox: false,
+          additionalArguments: [
+            `--video-editor-options-b64=${Buffer.from(JSON.stringify(options || {})).toString('base64')}`
+          ]
+        },
+        show: false
+      })
+
+      await this.windows.videoEditor.loadFile('src/windows/video-editor.html')
+
+      this.windows.videoEditor.webContents.once('dom-ready', () => {
+        try {
+          this.windows.videoEditor.webContents.send('init-video-editor-options', options || {})
+        } catch (e) {}
+      })
+
+      this.windows.videoEditor.once('ready-to-show', () => {
+        this.windows.videoEditor.show()
+        this.windows.videoEditor.focus()
+
+        try {
+          setTimeout(() => {
+            try {
+              this.windows.videoEditor.setFullScreen(true)
+            } catch (e) {}
+
+            try {
+              if (!this.windows.videoEditor.isFullScreen()) {
+                this.windows.videoEditor.maximize()
+              }
+            } catch (e) {}
+          }, 40)
+        } catch (e) {}
+      })
+
+      this.windows.videoEditor.on('closed', () => {
+        this.windows.videoEditor = null
+      })
+
+      return this.windows.videoEditor
+    } catch (error) {
+      throw error
+    }
   }
 
   async createDriveAccountsWindow() {

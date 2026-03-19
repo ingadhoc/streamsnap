@@ -32,6 +32,13 @@ const WINDOW_CONFIG = {
     minWidth: 500,
     minHeight: 400
   },
+  videoEditor: {
+    width: 780,
+    height: 620,
+    resizable: true,
+    minWidth: 720,
+    minHeight: 560
+  },
   sourceSelector: {
     width: 900,
     height: 700,
