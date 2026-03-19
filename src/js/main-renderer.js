@@ -263,7 +263,7 @@ class ScreenRecorder {
           if (payload.totalAccounts > 1 || payload.uploadedCount > 1) {
             this.showMultiAccountSuccessModal(payload)
           } else {
-            this.uiManager.showDriveSuccessModal(payload)
+            this.uiManager.showUploadSuccessModal(payload)
           }
         } else {
           this.uiManager.updateRecordingStatus('Drive upload failed', 'ready')

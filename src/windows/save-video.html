@@ -10,7 +10,7 @@
     />
     <link rel="stylesheet" href="../styles.css" />
     <link rel="stylesheet" href="../css/save-video.css" />
-    <link rel="stylesheet" href="../css/drive-success-modal.css" />
+    <link rel="stylesheet" href="../css/upload-success-modal.css" />
     <link rel="stylesheet" href="../css/folder-picker-modal.css" />
   </head>
   <body class="bg-slate-50 p-4 font-sans">
@@ -47,40 +47,6 @@
 
       <!-- Save Options -->
       <div class="space-y-3 mb-5">
-        <!-- Local Save Option -->
-        <div id="localSaveSection" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <span class="text-base">💾</span>
-              <h3 class="font-medium text-gray-800 text-sm">Save to Computer</h3>
-            </div>
-            <button
-              id="localSaveBtn"
-              class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all text-sm shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
-            >
-              💾 Save Local
-            </button>
-          </div>
-          <div class="mb-2">
-            <label class="block text-xs font-medium text-gray-600 mb-1">Save to folder:</label>
-            <div class="flex gap-2">
-              <input
-                type="text"
-                id="localFolderPath"
-                readonly
-                class="flex-1 px-2 py-1.5 border border-gray-300 rounded-md bg-gray-50 text-xs text-gray-600"
-                placeholder="Select folder..."
-              />
-              <button
-                id="browseLocalBtn"
-                class="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-semibold transition-all hover:shadow-md active:scale-95"
-              >
-                📁 Browse
-              </button>
-            </div>
-          </div>
-        </div>
-
         <!-- Google Drive Accounts Section -->
         <div
           id="driveAccountsSection"
@@ -110,7 +76,7 @@
             <label class="block text-xs font-medium text-gray-700 mb-1">Available accounts:</label>
             <div
               id="driveAccountsList"
-              class="space-y-2 max-h-64 overflow-y-auto bg-white/70 backdrop-blur-sm rounded-md p-3 border border-green-200"
+              class="space-y-2 bg-white/70 backdrop-blur-sm rounded-md p-3 border border-green-200"
             >
               <!-- Accounts will be populated here -->
             </div>
@@ -161,7 +127,7 @@
             <label class="block text-xs font-medium text-gray-700 mb-1">Available accounts:</label>
             <div
               id="youtubeAccountsList"
-              class="space-y-2 max-h-64 overflow-y-auto bg-white/70 backdrop-blur-sm rounded-md p-3 border border-red-200"
+              class="space-y-2 bg-white/70 backdrop-blur-sm rounded-md p-3 border border-red-200"
             ></div>
           </div>
         </div>
@@ -179,6 +145,40 @@
             >
               Manage Accounts
             </button>
+          </div>
+        </div>
+
+        <!-- Local Save Option -->
+        <div id="localSaveSection" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-base">💾</span>
+              <h3 class="font-medium text-gray-800 text-sm">Save to Computer</h3>
+            </div>
+            <button
+              id="localSaveBtn"
+              class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all text-sm shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
+            >
+              💾 Save Local
+            </button>
+          </div>
+          <div class="mb-2">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Save to folder:</label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="localFolderPath"
+                readonly
+                class="flex-1 px-2 py-1.5 border border-gray-300 rounded-md bg-gray-50 text-xs text-gray-600"
+                placeholder="Select folder..."
+              />
+              <button
+                id="browseLocalBtn"
+                class="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-semibold transition-all hover:shadow-md active:scale-95"
+              >
+                📁 Browse
+              </button>
+            </div>
           </div>
         </div>
 
@@ -204,7 +204,7 @@
 
     <script src="../js/video-fullscreen.js"></script>
     <script src="../js/folder-picker-modal.js"></script>
-    <script src="../js/drive-success-modal.js"></script>
+    <script src="../js/upload-success-modal.js"></script>
     <script src="../js/save-renderer.js"></script>
   </body>
 </html>

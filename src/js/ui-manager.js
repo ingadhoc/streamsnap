@@ -53,7 +53,7 @@ class UIManager {
     }
   }
 
-  showDriveSuccessModal(payload) {
+  showUploadSuccessModal(payload) {
     const modal = document.createElement('div')
     modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
     modal.innerHTML = `

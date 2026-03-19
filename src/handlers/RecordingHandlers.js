@@ -1,5 +1,7 @@
 const { ipcMain, screen } = require('electron')
 const VideoConversionService = require('../services/VideoConversionService')
+const DriveAccountManager = require('../services/DriveAccountManager')
+const YouTubeAccountManager = require('../services/YouTubeAccountManager')
 
 class RecordingHandlers {
   constructor(app) {
@@ -109,13 +111,14 @@ class RecordingHandlers {
           this.app.recordingManager.setRecordedVideoDuration(providedDuration)
         }
 
-        const settings = await this.app.getSettings()
-        const isDriveAvailable = settings?.driveEnabled && this.app.driveService.isAuthenticated()
+        const hasDriveAccounts = DriveAccountManager.getActiveAccounts().length > 0
+        const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
         const recordedPath = this.app.recordingManager.getRecordedVideoPath()
 
         this.app.windowManager.showMainWindow()
         await this.app.windowManager.createSaveWindow({
-          showDriveOption: Boolean(isDriveAvailable),
+          showDriveOption: Boolean(hasDriveAccounts),
+          showYouTubeOption: Boolean(hasYouTubeAccounts),
           showDriveSignIn: !this.app.driveService.isAuthenticated(),
           showLocalOption: true,
           tempVideoPath: recordedPath,
@@ -186,12 +189,13 @@ class RecordingHandlers {
           this.app.recordingManager.setRecordedVideoDuration(duration)
         }
 
-        const settings = await this.app.getSettings()
-        const isDriveAvailable = settings?.driveEnabled && this.app.driveService.isAuthenticated()
+        const hasDriveAccounts = DriveAccountManager.getActiveAccounts().length > 0
+        const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
 
         this.app.windowManager.showMainWindow()
         await this.app.windowManager.createSaveWindow({
-          showDriveOption: Boolean(isDriveAvailable),
+          showDriveOption: Boolean(hasDriveAccounts),
+          showYouTubeOption: Boolean(hasYouTubeAccounts),
           showDriveSignIn: !this.app.driveService.isAuthenticated(),
           showLocalOption: true,
           tempVideoPath: tempMp4Path,

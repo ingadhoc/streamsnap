@@ -189,6 +189,8 @@ class SaveVideoHandler {
     const noDriveAccountsSection = document.getElementById('noDriveAccountsSection')
     const youtubeAccountsSection = document.getElementById('youtubeAccountsSection')
     const noYouTubeAccountsSection = document.getElementById('noYouTubeAccountsSection')
+    const addMoreAccountsBtn = document.getElementById('addMoreAccountsBtn')
+    const addMoreYouTubeAccountsBtn = document.getElementById('addMoreYouTubeAccountsBtn')
 
     if (this.saveOptions.showLocalOption !== false) {
       localSection.classList.remove('hidden')
@@ -211,22 +213,32 @@ class SaveVideoHandler {
       localSection.classList.add('hidden')
     }
 
-    if (Array.isArray(this.activeAccounts) && this.activeAccounts.length > 0) {
+    const showDriveOption = this.saveOptions.showDriveOption !== false
+    const showYouTubeOption = this.saveOptions.showYouTubeOption !== false
+
+    if (addMoreAccountsBtn) {
+      addMoreAccountsBtn.classList.add('hidden')
+    }
+    if (addMoreYouTubeAccountsBtn) {
+      addMoreYouTubeAccountsBtn.classList.add('hidden')
+    }
+
+    if (showDriveOption && Array.isArray(this.activeAccounts) && this.activeAccounts.length > 0) {
       driveAccountsSection.classList.remove('hidden')
       noDriveAccountsSection.classList.add('hidden')
       this.renderDriveAccounts()
     } else {
       driveAccountsSection.classList.add('hidden')
-      noDriveAccountsSection.classList.remove('hidden')
+      noDriveAccountsSection.classList.add('hidden')
     }
 
-    if (Array.isArray(this.activeYouTubeAccounts) && this.activeYouTubeAccounts.length > 0) {
+    if (showYouTubeOption && Array.isArray(this.activeYouTubeAccounts) && this.activeYouTubeAccounts.length > 0) {
       youtubeAccountsSection.classList.remove('hidden')
       noYouTubeAccountsSection.classList.add('hidden')
       this.renderYouTubeAccounts()
     } else {
       youtubeAccountsSection.classList.add('hidden')
-      noYouTubeAccountsSection.classList.remove('hidden')
+      noYouTubeAccountsSection.classList.add('hidden')
     }
   }
 
@@ -313,40 +325,8 @@ class SaveVideoHandler {
       folderConfigDiv.appendChild(folderDisplay)
       folderConfigDiv.appendChild(folderBtn)
 
-      const privacyDiv = document.createElement('div')
-      privacyDiv.className = 'flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200'
-
-      const privacyLabel = document.createElement('label')
-      privacyLabel.className = 'text-sm font-medium text-green-800 flex-shrink-0'
-      privacyLabel.textContent = '🔒 Privacy:'
-
-      const privacySelect = document.createElement('select')
-      privacySelect.className =
-        'flex-1 px-3 py-2 border border-green-300 rounded-lg text-sm focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all bg-white min-w-0'
-      privacySelect.style.maxWidth = '300px'
-      privacySelect.id = `privacy-select-${account.id}`
-      privacySelect.innerHTML = `
-        <option value="restricted">🔒 Private (only you can access)</option>
-        <option value="anyoneWithLink">🔗 Anyone with the link can view</option>
-      `
-
-      privacySelect.value = account.defaultPrivacy || 'restricted'
-
-      privacySelect.addEventListener('change', async () => {
-        account.currentPrivacy = privacySelect.value
-        try {
-          await window.electronAPI.driveAccountsUpdate(account.id, {
-            defaultPrivacy: privacySelect.value
-          })
-        } catch (updateErr) {}
-      })
-
-      privacyDiv.appendChild(privacyLabel)
-      privacyDiv.appendChild(privacySelect)
-
       accountDiv.appendChild(headerDiv)
       accountDiv.appendChild(folderConfigDiv)
-      accountDiv.appendChild(privacyDiv)
       accountsList.appendChild(accountDiv)
     })
   }
@@ -393,10 +373,6 @@ class SaveVideoHandler {
         return
       }
 
-      const privacySelect = document.getElementById(`privacy-select-${account.id}`)
-
-      const selectedPrivacy = privacySelect ? privacySelect.value : account.defaultPrivacy || 'restricted'
-
       const selectedFolderId = account.currentFolderId || account.defaultFolderId
 
       if (!selectedFolderId) {
@@ -414,15 +390,14 @@ class SaveVideoHandler {
         accountId: account.id,
         folderId: selectedFolderId,
         videoData: videoData,
-        fileName: fileName,
-        privacy: selectedPrivacy
+        fileName: fileName
       })
 
       this.showSavingState(false)
 
       if (result && result.success) {
         if (result.webViewLink || result.fileId) {
-          this.showDriveSuccessModal(
+          this.showUploadSuccessModal(
             account.displayName || account.email,
             result.webViewLink,
             result.fileName || fileName
@@ -652,14 +627,18 @@ class SaveVideoHandler {
     setTimeout(() => toast.remove(), 3000)
   }
 
-  showDriveSuccessModal(accountName, webViewLink, fileName) {
+  showUploadSuccessModal(accountName, webViewLink, fileName) {
     try {
-      if (typeof DriveSuccessModal === 'undefined') {
+      if (typeof UploadSuccessModal === 'undefined') {
         this.showSuccess('Video uploaded successfully!')
         return
       }
-      const modal = new DriveSuccessModal()
-      modal.show(accountName, webViewLink, fileName)
+      const modal = new UploadSuccessModal()
+      modal.show(accountName, webViewLink, fileName, {
+        platform: 'drive',
+        fileLabel: 'File Name:',
+        primaryButtonText: 'Open & Copy'
+      })
     } catch (error) {
       this.showSuccess('Video uploaded successfully!')
     }
@@ -918,68 +897,26 @@ class SaveVideoHandler {
   }
 
   showYouTubeSuccessModal(channelName, videoUrl, title) {
-    const existingModal = document.getElementById('youtubeSuccessModal')
-    if (existingModal) {
-      existingModal.remove()
-    }
-
-    const modal = document.createElement('div')
-    modal.id = 'youtubeSuccessModal'
-    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
-    modal.innerHTML = `
-      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-        <div class="text-center">
-          <div class="w-16 h-16 bg-gradient-to-r from-red-500 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span class="text-3xl">▶️</span>
-          </div>
-          <h2 class="text-2xl font-bold text-gray-800 mb-2">Video Uploaded!</h2>
-          <p class="text-gray-600 mb-4">Your video has been successfully uploaded to YouTube</p>
-          <div class="bg-gray-50 rounded-lg p-4 mb-4 text-left">
-            <p class="text-sm text-gray-600 mb-1">Channel:</p>
-            <p class="font-medium text-gray-800 mb-3">${channelName}</p>
-            <p class="text-sm text-gray-600 mb-1">Title:</p>
-            <p class="font-medium text-gray-800 mb-3">${title}</p>
-            <p class="text-sm text-gray-600 mb-1">Video Link:</p>
-            <p class="text-xs text-blue-600 break-all">${videoUrl}</p>
-          </div>
-          <div class="flex gap-2">
-            <button id="copyYouTubeLinkBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors">
-              📋 Copy Link
-            </button>
-            <button id="openYouTubeVideoBtn" class="flex-1 bg-gradient-to-r from-red-500 to-pink-600 hover:opacity-90 text-white px-4 py-2 rounded-lg font-medium transition-all">
-              ▶️ Open Video
-            </button>
-          </div>
-          <button id="closeYouTubeModalBtn" class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg font-medium transition-colors">
-            Close
-          </button>
-        </div>
-      </div>
-    `
-
-    document.body.appendChild(modal)
-
-    document.getElementById('copyYouTubeLinkBtn').addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(videoUrl)
-        const btn = document.getElementById('copyYouTubeLinkBtn')
-        const originalText = btn.textContent
-        btn.textContent = '✅ Copied!'
-        setTimeout(() => {
-          btn.textContent = originalText
-        }, 2000)
-      } catch (error) {
-        alert('Failed to copy link')
+    try {
+      if (typeof UploadSuccessModal === 'undefined') {
+        this.showSuccess('Video uploaded successfully!')
+        return
       }
-    })
 
-    document.getElementById('openYouTubeVideoBtn').addEventListener('click', () => {
-      window.electronAPI.openExternal(videoUrl)
-    })
-
-    document.getElementById('closeYouTubeModalBtn').addEventListener('click', () => {
-      modal.remove()
-    })
+      const modal = new UploadSuccessModal()
+      modal.show(channelName, videoUrl, title, {
+        platform: 'youtube',
+        title: 'Video Uploaded!',
+        subtitle: 'Your video has been successfully uploaded to YouTube',
+        details: [
+          { label: 'Channel:', value: channelName },
+          { label: 'Title:', value: title }
+        ],
+        primaryButtonText: 'Open & Copy'
+      })
+    } catch (error) {
+      this.showSuccess('Video uploaded successfully!')
+    }
   }
 
   async manageYouTubeAccounts() {
