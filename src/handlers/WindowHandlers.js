@@ -99,6 +99,15 @@ class WindowHandlers {
       return { success: true }
     })
 
+    ipcMain.handle('start-floating-drag', () => {
+      this.app.windowManager.startFloatingDrag()
+      return { success: true }
+    })
+
+    ipcMain.on('stop-floating-drag', () => {
+      this.app.windowManager.stopFloatingDrag()
+    })
+
     ipcMain.handle('resize-floating-window', (event, width, height) => {
       this.app.windowManager.resizeFloatingWindow(width, height)
       return { success: true }

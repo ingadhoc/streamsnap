@@ -105,6 +105,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   closeFloating: () => ipcRenderer.invoke('close-floating'),
   moveFloatingWindow: (deltaX, deltaY) => ipcRenderer.invoke('move-floating-window', deltaX, deltaY),
+  startFloatingDrag: () => ipcRenderer.invoke('start-floating-drag'),
+  stopFloatingDrag: () => ipcRenderer.send('stop-floating-drag'),
   resizeFloatingWindow: (width, height) => ipcRenderer.invoke('resize-floating-window', width, height),
   minimizeMain: () => ipcRenderer.invoke('minimize-main'),
   closeSaveWindow: () => ipcRenderer.invoke('close-save-window'),

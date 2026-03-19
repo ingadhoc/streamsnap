@@ -108,36 +108,6 @@ function setupEventListeners() {
     })
   }
 
-  let isDragging = false
-  let dragOffset = { x: 0, y: 0 }
-
-  document.addEventListener('mousedown', e => {
-    if (e.target.tagName !== 'BUTTON') {
-      isDragging = true
-      dragOffset.x = e.clientX
-      dragOffset.y = e.clientY
-      e.preventDefault()
-    }
-  })
-
-  document.addEventListener('mousemove', e => {
-    if (isDragging) {
-      const deltaX = e.clientX - dragOffset.x
-      const deltaY = e.clientY - dragOffset.y
-
-      if (window.electronAPI && window.electronAPI.moveFloatingWindow) {
-        window.electronAPI.moveFloatingWindow(deltaX, deltaY)
-      }
-
-      dragOffset.x = e.clientX
-      dragOffset.y = e.clientY
-    }
-  })
-
-  document.addEventListener('mouseup', () => {
-    isDragging = false
-  })
-
   if (window.electronAPI) {
     window.electronAPI.onStopRecording &&
       window.electronAPI.onStopRecording(() => {
