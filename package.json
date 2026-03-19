@@ -73,8 +73,8 @@
     "keytar": "^7.9.0"
   },
   "devDependencies": {
-    "electron": "^30.5.1",
-    "electron-builder": "^24.13.3",
+    "electron": "^41.0.3",
+    "electron-builder": "^26.8.1",
     "eslint": "^8.57.1",
     "prettier": "^3.7.4",
     "tailwindcss": "^3.4.15"
@@ -164,8 +164,7 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "src/icon.png",
-      "publisherName": "StreamSnap Team"
+      "icon": "src/icon.png"
     },
     "linux": {
       "target": [
@@ -176,15 +175,17 @@
       "icon": "src/icon.png",
       "category": "AudioVideo",
       "desktop": {
-        "Name": "StreamSnap",
-        "Comment": "Professional screen recording application",
-        "GenericName": "Screen Recorder",
-        "Type": "Application",
-        "Terminal": false,
-        "StartupNotify": true,
-        "Categories": "AudioVideo;Video;Recorder;",
-        "MimeType": "video/mp4;video/webm;",
-        "Keywords": "screen;recording;video;capture;"
+        "entry": {
+          "Name": "StreamSnap",
+          "Comment": "Professional screen recording application",
+          "GenericName": "Screen Recorder",
+          "Type": "Application",
+          "Terminal": false,
+          "StartupNotify": true,
+          "Categories": "AudioVideo;Video;Recorder;",
+          "MimeType": "video/mp4;video/webm;",
+          "Keywords": "screen;recording;video;capture;"
+        }
       },
       "maintainer": "StreamSnap Team <contact@streamsnap.app>",
       "vendor": "StreamSnap Team",
@@ -200,8 +201,7 @@
     },
     "buildDependenciesFromSource": false,
     "nodeGypRebuild": false,
-    "npmRebuild": false,
-    "includeSubNodeModules": false
+    "npmRebuild": false
   },
   "eslintConfig": {
     "env": {
