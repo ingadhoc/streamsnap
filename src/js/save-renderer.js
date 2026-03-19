@@ -7,8 +7,6 @@ class SaveVideoHandler {
     this.activeYouTubeAccounts = []
     this.selectedAccounts = new Map()
     this.selectedYouTubeAccounts = new Set()
-    this.mediaCMSAuthenticated = false
-    this.mediaCMSConfig = null
 
     this.initializeUI()
     this.loadSaveOptions()
@@ -68,16 +66,7 @@ class SaveVideoHandler {
       })
     }
 
-    if (window.electronAPI && window.electronAPI.onMediaCMSAuthUpdated) {
-      window.electronAPI.onMediaCMSAuthUpdated(() => {
-        this.loadMediaCMSConfig()
-          .then(() => this.updateMediaCMSUI())
-          .catch(() => {})
-      })
-    }
-
     this.setupDriveAccountsListener()
-    this.loadMediaCMSConfig()
   }
 
   setupDriveAccountsListener() {
@@ -101,11 +90,6 @@ class SaveVideoHandler {
         this.configureSaveOptions()
       })
       .catch(() => {})
-    this.loadMediaCMSConfig()
-      .then(() => {
-        this.updateMediaCMSUI()
-      })
-      .catch(() => {})
   }
 
   initializeUI() {
@@ -117,7 +101,6 @@ class SaveVideoHandler {
     const addMoreAccountsBtn = document.getElementById('addMoreAccountsBtn')
     const manageYouTubeAccountsBtn = document.getElementById('manageYouTubeAccountsBtn')
     const addMoreYouTubeAccountsBtn = document.getElementById('addMoreYouTubeAccountsBtn')
-    const mediaCMSSaveBtn = document.getElementById('mediaCMSSaveBtn')
 
     discardBtn.addEventListener('click', () => this.discardVideo())
     localSaveBtn.addEventListener('click', () => this.saveToLocal())
@@ -134,10 +117,6 @@ class SaveVideoHandler {
 
     if (addMoreYouTubeAccountsBtn) {
       addMoreYouTubeAccountsBtn.addEventListener('click', () => this.manageYouTubeAccounts())
-    }
-
-    if (mediaCMSSaveBtn) {
-      mediaCMSSaveBtn.addEventListener('click', () => this.saveToMediaCMS())
     }
 
     const now = new Date()
@@ -164,7 +143,6 @@ class SaveVideoHandler {
 
     await this.loadActiveAccounts()
     this.configureSaveOptions()
-    this.updateMediaCMSUI()
 
     if (window.electronAPI && window.electronAPI.onInitSaveOptions) {
       window.electronAPI.onInitSaveOptions(async data => {
@@ -406,8 +384,8 @@ class SaveVideoHandler {
     try {
       let fileName = document.getElementById('fileName').value.trim() || 'recording'
 
-      if (!fileName.toLowerCase().endsWith('.webm')) {
-        fileName += '.webm'
+      if (!fileName.toLowerCase().endsWith('.mp4')) {
+        fileName += '.mp4'
       }
 
       if (!this.videoBlob) {
@@ -498,8 +476,8 @@ class SaveVideoHandler {
     try {
       let fileName = document.getElementById('fileName').value.trim() || 'recording'
 
-      if (!fileName.toLowerCase().endsWith('.webm')) {
-        fileName += '.webm'
+      if (!fileName.toLowerCase().endsWith('.mp4')) {
+        fileName += '.mp4'
       }
 
       if (!this.videoBlob) {
@@ -565,7 +543,7 @@ class SaveVideoHandler {
 
           if (videoBlob) {
             this.videoBlob = videoBlob
-            video.src = URL.createObjectURL(new Blob([videoBlob], { type: 'video/webm' }))
+            video.src = URL.createObjectURL(new Blob([videoBlob], { type: 'video/mp4' }))
 
             const recordedDuration = data.recordedDuration
             if (recordedDuration && recordedDuration > 0) {
@@ -1009,125 +987,6 @@ class SaveVideoHandler {
       await window.electronAPI.youtubeAccountsOpen()
     } catch (error) {
       this.showError('Failed to open YouTube accounts manager')
-    }
-  }
-
-  async loadMediaCMSConfig() {
-    try {
-      const result = await window.electronAPI.mediaCMSGetConfig()
-      if (result && result.success && result.config) {
-        this.mediaCMSConfig = result.config
-        this.mediaCMSAuthenticated = result.config.isAuthenticated
-      } else {
-        this.mediaCMSAuthenticated = false
-      }
-    } catch (error) {
-      console.error('Error loading MediaCMS config:', error)
-      this.mediaCMSAuthenticated = false
-    }
-  }
-
-  updateMediaCMSUI() {
-    const mediaCMSSection = document.getElementById('mediaCMSSection')
-    const noMediaCMSSection = document.getElementById('noMediaCMSSection')
-    const mediaCMSStatus = document.getElementById('mediaCMSStatus')
-    const mediaCMSSaveBtn = document.getElementById('mediaCMSSaveBtn')
-    const configureMediaCMSBtn = document.getElementById('configureMediaCMSBtn')
-    const mediaCMSTitle = document.getElementById('mediaCMSTitle')
-    const fileNameInput = document.getElementById('fileName')
-
-    if (this.mediaCMSAuthenticated && this.mediaCMSConfig) {
-      if (mediaCMSSection) {
-        mediaCMSSection.classList.remove('hidden')
-      }
-      if (noMediaCMSSection) {
-        noMediaCMSSection.classList.add('hidden')
-      }
-      
-      if (mediaCMSStatus) {
-        mediaCMSStatus.textContent = `Connected to ${this.mediaCMSConfig.serverUrl}`
-      }
-      if (mediaCMSSaveBtn) {
-        mediaCMSSaveBtn.disabled = false
-      }
-      
-      if (mediaCMSTitle && fileNameInput && !mediaCMSTitle.value) {
-        mediaCMSTitle.value = fileNameInput.value || ''
-      }
-    } else {
-      if (mediaCMSSection) {
-        mediaCMSSection.classList.add('hidden')
-      }
-      if (noMediaCMSSection) {
-        noMediaCMSSection.classList.remove('hidden')
-      }
-    }
-    
-    if (configureMediaCMSBtn) {
-      configureMediaCMSBtn.onclick = async () => {
-        try {
-          await window.electronAPI.mediaCMSOpen()
-        } catch (error) {
-          console.error('Error opening MediaCMS settings:', error)
-        }
-      }
-    }
-  }
-
-  async saveToMediaCMS() {
-    if (!this.mediaCMSAuthenticated) {
-      try {
-        await window.electronAPI.mediaCMSOpen()
-      } catch (error) {
-        this.showError('Failed to open MediaCMS settings')
-      }
-      return
-    }
-
-    const titleInput = document.getElementById('mediaCMSTitle')
-    const descriptionInput = document.getElementById('mediaCMSDescription')
-    const publicCheckbox = document.getElementById('mediaCMSPublic')
-    const fileNameInput = document.getElementById('fileName')
-    
-    const title = (titleInput.value || '').trim() || (fileNameInput.value || '').trim() || 'Untitled Recording'
-    const description = (descriptionInput.value || '').trim() || `Recorded with StreamSnap on ${new Date().toLocaleDateString()}`
-    const isPublic = publicCheckbox.checked
-
-    try {
-      this.showSavingState('Converting and uploading to MediaCMS...')
-
-      const result = await window.electronAPI.mediaCMSUploadVideo({
-        filePath: this.saveOptions.tempVideoPath,
-        title: title,
-        description: description,
-        isPublic: isPublic
-      })
-
-      if (result.success) {
-        this.showSavingState(false)
-        this.showMediaCMSSuccessModal(result.url)
-      } else {
-        throw new Error(result.error || 'Upload failed')
-      }
-    } catch (error) {
-      console.error('Error uploading to MediaCMS:', error)
-      this.showError('Failed to upload to MediaCMS: ' + error.message)
-      this.showSavingState(false)
-    }
-  }
-
-  async showMediaCMSSuccessModal(videoUrl) {
-    try {
-      const config = await window.electronAPI.mediaCMSGetConfig()
-      const titleInput = document.getElementById('mediaCMSTitle')
-      const fileNameInput = document.getElementById('fileName')
-      const title = (titleInput.value || '').trim() || (fileNameInput.value || '').trim() || 'Untitled Recording'
-      
-      const modal = new MediaCMSSuccessModal()
-      modal.show(config.serverUrl || 'MediaCMS', videoUrl, title)
-    } catch (error) {
-      console.error('Error showing MediaCMS success modal:', error)
-      alert(`Video uploaded successfully!\n\nOpen video: ${videoUrl}`)
     }
   }
 }

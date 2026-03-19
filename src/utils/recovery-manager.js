@@ -21,7 +21,7 @@ class RecoveryManager {
       const videoFiles = []
 
       for (const file of files) {
-        if (file.endsWith('.webm')) {
+        if (file.endsWith('.webm') || file.endsWith('.mp4')) {
           const filePath = path.join(tempDir, file)
           try {
             const stats = await fs.stat(filePath)

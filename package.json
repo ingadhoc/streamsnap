@@ -12,6 +12,9 @@
     "url": "https://github.com/lef-adhoc/streamsnap/issues"
   },
   "scripts": {
+    "check:platform:mac": "node scripts/check-platform.js darwin",
+    "check:platform:linux": "node scripts/check-platform.js linux",
+    "check:platform:win": "node scripts/check-platform.js win32",
     "dev": "npm run build:css && electron . --max-old-space-size=4096",
     "start": "electron . --max-old-space-size=4096",
     "build:css": "tailwindcss -i ./src/input.css -o ./src/styles.css --minify",
@@ -19,15 +22,18 @@
     "build:icons:mac": "mkdir -p build/icon.iconset && sips -z 16 16 src/icon.png --out build/icon.iconset/icon_16x16.png && sips -z 32 32 src/icon.png --out build/icon.iconset/icon_16x16@2x.png && sips -z 32 32 src/icon.png --out build/icon.iconset/icon_32x32.png && sips -z 64 64 src/icon.png --out build/icon.iconset/icon_32x32@2x.png && sips -z 128 128 src/icon.png --out build/icon.iconset/icon_128x128.png && sips -z 256 256 src/icon.png --out build/icon.iconset/icon_256x256.png && sips -z 512 512 src/icon.png --out build/icon.iconset/icon_256x256@2x.png && sips -z 512 512 src/icon.png --out build/icon.iconset/icon_512x512.png && sips -z 1024 1024 src/icon.png --out build/icon.iconset/icon_512x512@2x.png && iconutil -c icns build/icon.iconset -o src/icon.icns",
     "clean": "rm -rf dist/ && rm -rf build/",
     "prebuild": "npm run clean && npm run build:css",
-    "build": "npm run prebuild && electron-builder --mac dmg --publish=never",
-    "build:app-only": "npm run prebuild && electron-builder --mac dir --publish=never",
-    "build:zip": "npm run prebuild && electron-builder --mac zip --publish=never",
-    "build:dmg": "npm run prebuild && electron-builder --mac dmg --publish=never",
-    "build:all-mac": "npm run prebuild && electron-builder --mac --publish=never",
-    "build:simple": "npm run prebuild && electron-builder --mac dir --publish=never",
+    "prebuild:mac": "npm run check:platform:mac && npm run prebuild",
+    "prebuild:linux": "npm run check:platform:linux && npm run prebuild",
+    "prebuild:win": "npm run check:platform:win && npm run prebuild",
+    "build": "npm run prebuild:mac && electron-builder --mac dmg --publish=never",
+    "build:app-only": "npm run prebuild:mac && electron-builder --mac dir --publish=never",
+    "build:zip": "npm run prebuild:mac && electron-builder --mac zip --publish=never",
+    "build:dmg": "npm run prebuild:mac && electron-builder --mac dmg --publish=never",
+    "build:all-mac": "npm run prebuild:mac && electron-builder --mac --publish=never",
+    "build:simple": "npm run prebuild:mac && electron-builder --mac dir --publish=never",
     "build:all": "npm run prebuild && electron-builder --publish=never",
-    "build:win": "npm run prebuild && electron-builder --win --publish=never",
-    "build:linux": "npm run prebuild && electron-builder --linux --publish=never",
+    "build:win": "npm run prebuild:win && electron-builder --win --publish=never",
+    "build:linux": "npm run prebuild:linux && electron-builder --linux --publish=never",
     "dist": "npm run prebuild && electron-builder --publish=never",
     "format": "prettier --write \"src/**/*.{js,html,css}\" \"*.{js,json,md}\"",
     "format:check": "prettier --check \"src/**/*.{js,html,css}\" \"*.{js,json,md}\"",
@@ -61,9 +67,7 @@
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "dotenv": "^16.4.5",
-    "fluent-ffmpeg": "^2.1.3",
-    "googleapis": "^169.0.0",
-    "node-fetch": "^2.7.0"
+    "fluent-ffmpeg": "^2.1.3"
   },
   "optionalDependencies": {
     "keytar": "^7.9.0"
@@ -90,7 +94,18 @@
       ".env",
       "!src/**/*.map",
       "!**/*.{ts,tsx}",
-      "!*.d.ts"
+      "!*.d.ts",
+      "!**/*~",
+      "!**/.DS_Store",
+      "!**/*.{md,markdown}",
+      "!**/{test,tests,__tests__,example,examples,coverage,doc,docs}/**/*",
+      "!node_modules/fluent-ffmpeg/coverage{,/**}",
+      "!node_modules/fluent-ffmpeg/doc{,/**}",
+      "!node_modules/fluent-ffmpeg/OLD{,/**}"
+    ],
+    "electronLanguages": [
+      "en",
+      "es"
     ],
     "mac": {
       "target": [

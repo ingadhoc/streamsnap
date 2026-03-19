@@ -21,6 +21,20 @@ class ScreenRecorder {
         this.handleDriveAuthUpdate(data)
       })
     }
+
+    if (window.electronAPI && window.electronAPI.onRecordingConversionProgress) {
+      window.electronAPI.onRecordingConversionProgress(data => {
+        if (!data || !data.stage) return
+
+        if (data.stage === 'started' || data.stage === 'progress') {
+          this.uiManager.updateRecordingStatus(data.message || 'Converting to MP4...', 'recording')
+          this.uiManager.disableStartButton()
+        } else if (data.stage === 'failed') {
+          this.uiManager.updateRecordingStatus(data.message || 'Error converting to MP4', 'ready')
+          this.uiManager.enableStartButton()
+        }
+      })
+    }
   }
 
   handleDriveAuthUpdate(data) {
@@ -269,7 +283,8 @@ class ScreenRecorder {
   async startRecordingWithSource(source) {
     try {
       this.recordingState.reset()
-      this.recordingState.selectedSource = source
+      const captureSource = await this.resolveSourceForCapture(source)
+      this.recordingState.selectedSource = captureSource
 
       if (this.settingsManager.settings.enableCountdown) {
         try {
@@ -279,7 +294,7 @@ class ScreenRecorder {
         }
       }
 
-      const finalStream = await this.createMediaStream(source)
+      const finalStream = await this.createMediaStream(captureSource)
       if (!finalStream) {
         throw new Error('Failed to create media stream')
       }
@@ -299,6 +314,35 @@ class ScreenRecorder {
       this.uiManager.updateRecordingStatus('Error starting recording', 'ready')
       this.recordingState.cleanup()
       this.showRecordingError(error)
+    }
+  }
+
+  async resolveSourceForCapture(source) {
+    if (!source || !source.id || !source.id.startsWith('screen:') || !window.electronAPI?.getDesktopSources) {
+      return source
+    }
+
+    try {
+      const latestSources = await window.electronAPI.getDesktopSources()
+      const latestScreens = latestSources.filter(s => s.id && s.id.startsWith('screen:'))
+
+      let match = null
+
+      if (source.display_id != null) {
+        match = latestScreens.find(s => String(s.display_id) === String(source.display_id))
+      }
+
+      if (!match) {
+        match = latestScreens.find(s => s.id === source.id)
+      }
+
+      if (!match && source.name) {
+        match = latestScreens.find(s => s.name === source.name)
+      }
+
+      return match ? { ...source, ...match } : source
+    } catch (error) {
+      return source
     }
   }
 
@@ -534,6 +578,9 @@ class ScreenRecorder {
     try {
       const mimeType = this.recordingState.mediaRecorder ? this.recordingState.mediaRecorder.mimeType : 'video/webm'
       const blob = new Blob(this.recordingState.recordedChunks, { type: mimeType })
+
+      this.uiManager.updateRecordingStatus('Converting to MP4...', 'recording')
+      this.uiManager.disableStartButton()
 
       const computedDurationSeconds = this.recordingState.getDuration()
       let includedDuration = computedDurationSeconds

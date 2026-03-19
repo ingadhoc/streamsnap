@@ -4,7 +4,6 @@ const WindowManager = require('./src/services/WindowManager')
 const RecordingManager = require('./src/services/RecordingManager')
 const DriveService = require('./src/services/DriveService')
 const YouTubeService = require('./src/services/YouTubeService')
-const MediaCMSService = require('./src/services/MediaCMSService')
 const StorageService = require('./src/services/StorageService')
 const RecoveryManager = require('./src/utils/recovery-manager')
 
@@ -12,7 +11,6 @@ const RecordingHandlers = require('./src/handlers/RecordingHandlers')
 const WindowHandlers = require('./src/handlers/WindowHandlers')
 const DriveHandlers = require('./src/handlers/DriveHandlers')
 const YouTubeHandlers = require('./src/handlers/YouTubeHandlers')
-const MediaCMSHandlers = require('./src/handlers/MediaCMSHandlers')
 const StorageHandlers = require('./src/handlers/StorageHandlers')
 
 class StreamSnapApp {
@@ -21,7 +19,6 @@ class StreamSnapApp {
     this.recordingManager = new RecordingManager()
     this.driveService = new DriveService()
     this.youtubeService = new YouTubeService()
-    this.mediaCMSService = new MediaCMSService()
     this.storageService = new StorageService()
     this.isInitialized = false
 
@@ -46,7 +43,6 @@ class StreamSnapApp {
     new RecordingHandlers(this)
     new WindowHandlers(this)
     new DriveHandlers(this)
-    new MediaCMSHandlers(this)
     new YouTubeHandlers(this)
     new StorageHandlers(this)
   }
