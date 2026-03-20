@@ -1,3 +1,19 @@
+/* Prevent full-page scroll — each OS has different window chrome height.
+   Record tab must fit without scrolling; Settings tab scrolls internally. */
+html {
+  overflow: hidden;
+}
+
+body {
+  overflow: hidden;
+  height: 100vh;
+}
+
+.settings-scrollable {
+  overflow-y: auto;
+  max-height: calc(100vh - 300px);
+}
+
 .tab-button.active {
   border-color: #3b82f6;
   color: #3b82f6;
