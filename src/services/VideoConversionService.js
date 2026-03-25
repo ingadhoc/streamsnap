@@ -1,11 +1,50 @@
 const ffmpeg = require('fluent-ffmpeg')
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path
+const fs = require('fs')
+const path = require('path')
+
+function resolvePackagedFfmpegPath(rawPath) {
+  if (!rawPath || typeof rawPath !== 'string') return rawPath
+
+  // In packaged apps, binaries cannot be executed from inside app.asar.
+  if (rawPath.includes('app.asar')) {
+    const unpackedPath = rawPath.replace('app.asar', 'app.asar.unpacked')
+    if (fs.existsSync(unpackedPath)) {
+      return unpackedPath
+    }
+  }
+
+  // Fallback for packaged runs if module resolution returns an unexpected location.
+  if (process.resourcesPath) {
+    const platformArch = `${process.platform}-${process.arch}`
+    const fallbackPath = path.join(
+      process.resourcesPath,
+      'app.asar.unpacked',
+      'node_modules',
+      '@ffmpeg-installer',
+      platformArch,
+      process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg'
+    )
+
+    if (fs.existsSync(fallbackPath)) {
+      return fallbackPath
+    }
+  }
+
+  return rawPath
+}
+
+const rawFfmpegPath = require('@ffmpeg-installer/ffmpeg').path
+const ffmpegPath = resolvePackagedFfmpegPath(rawFfmpegPath)
 
 ffmpeg.setFfmpegPath(ffmpegPath)
 
 class VideoConversionService {
   static convertWebmToMp4(inputPath, outputPath, onProgress = null, options = {}) {
     const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 10 * 60 * 1000
+
+    if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
+      return Promise.reject(new Error(`FFmpeg binary not found at path: ${ffmpegPath}`))
+    }
 
     return new Promise((resolve, reject) => {
       const command = ffmpeg(inputPath)

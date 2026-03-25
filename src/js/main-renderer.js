@@ -27,9 +27,14 @@ class ScreenRecorder {
         if (!data || !data.stage) return
 
         if (data.stage === 'started' || data.stage === 'progress') {
-          this.uiManager.updateRecordingStatus(data.message || 'Converting to MP4...', 'recording')
+          this.uiManager.showConversionProgress(data.percent)
+          this.uiManager.updateRecordingStatus('Converting to MP4...', 'recording')
           this.uiManager.disableStartButton()
+        } else if (data.stage === 'completed') {
+          this.uiManager.showConversionProgress(100)
+          this.uiManager.updateRecordingStatus('MP4 conversion completed', 'recording')
         } else if (data.stage === 'failed') {
+          this.uiManager.hideConversionProgress()
           this.uiManager.updateRecordingStatus(data.message || 'Error converting to MP4', 'ready')
           this.uiManager.enableStartButton()
         }
@@ -614,9 +619,11 @@ class ScreenRecorder {
         throw new Error(result?.error || 'Failed to save recording')
       }
 
+      this.uiManager.hideConversionProgress()
       this.uiManager.updateRecordingStatus('Recording complete', 'complete')
       this.uiManager.enableStartButton()
     } catch (error) {
+      this.uiManager.hideConversionProgress()
       this.uiManager.updateRecordingStatus('Error saving recording', 'ready')
       this.uiManager.enableStartButton()
       alert(

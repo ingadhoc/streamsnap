@@ -56,6 +56,19 @@
               Ready to record
             </div>
 
+            <div id="conversionProgressContainer" class="hidden w-full max-w-md mx-auto -mt-4 mb-6">
+              <div class="flex items-center justify-end text-xs text-gray-600 mb-1">
+                <span id="conversionProgressPercent">0%</span>
+              </div>
+              <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  id="conversionProgressBar"
+                  class="h-full bg-blue-500 transition-all duration-300 ease-out"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+
             <h2 class="text-2xl font-semibold text-gray-800 mb-2">Start Your Recording</h2>
             <p class="text-gray-600">Click start to choose what you want to record</p>
           </div>

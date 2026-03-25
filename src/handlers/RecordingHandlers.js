@@ -135,6 +135,20 @@ class RecordingHandlers {
       const fs = require('fs').promises
       const path = require('path')
       const os = require('os')
+      const parseTimemarkToSeconds = timemark => {
+        if (!timemark || typeof timemark !== 'string') return null
+
+        const parts = timemark.split(':')
+        if (parts.length !== 3) return null
+
+        const hours = Number(parts[0])
+        const minutes = Number(parts[1])
+        const seconds = Number(parts[2])
+
+        if ([hours, minutes, seconds].some(n => Number.isNaN(n))) return null
+
+        return hours * 3600 + minutes * 60 + seconds
+      }
 
       try {
         const tempDir = path.join(os.tmpdir(), 'streamsnap-recordings')
@@ -154,12 +168,19 @@ class RecordingHandlers {
         })
 
         await VideoConversionService.convertWebmToMp4(tempWebmPath, tempMp4Path, progress => {
-          const rawPercent = typeof progress?.percent === 'number' ? progress.percent : null
-          const percent =
-            rawPercent == null
-              ? null
-              : Math.max(0, Math.min(100, Math.round(rawPercent)))
           const timemark = typeof progress?.timemark === 'string' ? progress.timemark : null
+          const rawPercent = typeof progress?.percent === 'number' ? progress.percent : null
+          const durationSeconds = typeof duration === 'number' && duration > 0 ? duration : null
+          const timemarkSeconds = parseTimemarkToSeconds(timemark)
+
+          let percent = null
+          if (rawPercent != null) {
+            percent = Math.max(0, Math.min(100, Math.round(rawPercent)))
+          } else if (durationSeconds != null && timemarkSeconds != null) {
+            const estimated = Math.round((timemarkSeconds / durationSeconds) * 100)
+            percent = Math.max(0, Math.min(99, estimated))
+          }
+
           const fallbackMessage = timemark
             ? `Converting to MP4... (${timemark})`
             : 'Converting to MP4...'

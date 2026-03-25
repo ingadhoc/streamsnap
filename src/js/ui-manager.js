@@ -2,6 +2,9 @@ class UIManager {
   constructor() {
     this.statusElement = document.getElementById('recordingStatus')
     this.startButton = document.getElementById('startRecordingBtn')
+    this.conversionProgressContainer = document.getElementById('conversionProgressContainer')
+    this.conversionProgressBar = document.getElementById('conversionProgressBar')
+    this.conversionProgressPercent = document.getElementById('conversionProgressPercent')
   }
 
   updateRecordingStatus(text, status = 'ready') {
@@ -29,6 +32,36 @@ class UIManager {
 
   disableStartButton() {
     this.startButton.disabled = true
+  }
+
+  showConversionProgress(percent = null) {
+    if (!this.conversionProgressContainer) return
+
+    this.conversionProgressContainer.classList.remove('hidden')
+
+    const numericPercent = typeof percent === 'number' ? Math.max(0, Math.min(100, Math.round(percent))) : 0
+
+    if (this.conversionProgressBar) {
+      this.conversionProgressBar.style.width = `${numericPercent}%`
+    }
+
+    if (this.conversionProgressPercent) {
+      this.conversionProgressPercent.textContent = `${numericPercent}%`
+    }
+  }
+
+  hideConversionProgress() {
+    if (!this.conversionProgressContainer) return
+
+    this.conversionProgressContainer.classList.add('hidden')
+
+    if (this.conversionProgressBar) {
+      this.conversionProgressBar.style.width = '0%'
+    }
+
+    if (this.conversionProgressPercent) {
+      this.conversionProgressPercent.textContent = '0%'
+    }
   }
 
   showError(message) {
