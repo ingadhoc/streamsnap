@@ -279,6 +279,12 @@ class ScreenRecorder {
 
   async openSourceSelector() {
     try {
+      if (window.electronAPI?.platform === 'linux') {
+        // Linux/Wayland portals can loop when mixing a custom source picker with desktop constraints.
+        await this.startRecordingWithSource({ id: 'linux-display-media', name: 'Screen Capture' })
+        return
+      }
+
       await window.electronAPI.openSourceSelector()
     } catch (error) {
       alert('Failed to open source selector')
@@ -354,6 +360,10 @@ class ScreenRecorder {
   async createMediaStream(source) {
     const wantsMicrophone = this.settingsManager.settings.recordMicrophone
     const wantsSystemAudio = this.settingsManager.settings.recordSystemAudio
+
+    if (window.electronAPI?.platform === 'linux' && navigator.mediaDevices?.getDisplayMedia) {
+      return await this.createLinuxDisplayMediaStream({ wantsMicrophone, wantsSystemAudio })
+    }
 
     if (!wantsMicrophone && !wantsSystemAudio) {
       return await navigator.mediaDevices.getUserMedia({
@@ -435,6 +445,37 @@ class ScreenRecorder {
       return this.mixAudioStreams(displayStream, micStream)
     } catch (micError) {
       alert('Microphone access denied. Recording with system audio only.')
+      return displayStream
+    }
+  }
+
+  async createLinuxDisplayMediaStream({ wantsMicrophone, wantsSystemAudio }) {
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: !!wantsSystemAudio
+    })
+
+    if (!wantsMicrophone) {
+      if (!wantsSystemAudio && displayStream.getAudioTracks().length) {
+        displayStream.getAudioTracks().forEach(track => track.stop())
+      }
+      return displayStream
+    }
+
+    try {
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+
+      if (wantsSystemAudio && displayStream.getAudioTracks().length) {
+        return this.mixAudioStreams(displayStream, micStream)
+      }
+
+      return new MediaStream([...displayStream.getVideoTracks(), ...micStream.getAudioTracks()])
+    } catch (micError) {
+      if (!wantsSystemAudio && displayStream.getAudioTracks().length) {
+        displayStream.getAudioTracks().forEach(track => track.stop())
+        return new MediaStream([...displayStream.getVideoTracks()])
+      }
+
       return displayStream
     }
   }
