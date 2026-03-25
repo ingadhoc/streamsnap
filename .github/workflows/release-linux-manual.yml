@@ -1,0 +1,131 @@
+name: Manual Linux Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Branch or commit to build from"
+        required: false
+        default: "main"
+        type: string
+      release_name:
+        description: "Release title (optional)"
+        required: false
+        default: ""
+        type: string
+      prerelease:
+        description: "Mark as pre-release"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_ref }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate release tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(node -p "require('./package.json').version")"
+          BASE_TAG="v${VERSION}"
+          TAG="${BASE_TAG}"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            TAG="${BASE_TAG}-linux.${GITHUB_RUN_NUMBER}"
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Using tag: ${TAG}"
+
+      - name: Build Linux artifacts
+        run: npm run build:linux
+
+      - name: Collect release artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          files=(
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+            dist/*.blockmap
+            dist/latest-linux.yml
+          )
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No Linux artifacts found in dist/."
+            exit 1
+          fi
+
+          {
+            echo "files<<EOF"
+            printf "%s\n" "${files[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Ensure tag exists on remote
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists on origin."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "refs/tags/${TAG}"
+
+      - name: Resolve release name
+        id: naming
+        env:
+          RELEASE_NAME: ${{ inputs.release_name }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${RELEASE_NAME}" ]; then
+            echo "name=${RELEASE_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=Release ${TAG}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.naming.outputs.name }}
+          files: ${{ steps.artifacts.outputs.files }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
