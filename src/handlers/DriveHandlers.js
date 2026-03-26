@@ -71,6 +71,15 @@ class DriveHandlers {
       }
     })
 
+    ipcMain.handle('drive-accounts:handle-auth-error', async (event, accountId) => {
+      try {
+        const result = await DriveAccountManager.handleAuthError(accountId)
+        return result
+      } catch (error) {
+        return { success: false, shouldRemove: false, error: error.message }
+      }
+    })
+
     ipcMain.handle('get-drive-folders-account', async (event, accountId) => {
       try {
         const folders = await DriveAccountManager.getFolders(accountId)
