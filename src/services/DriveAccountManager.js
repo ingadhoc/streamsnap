@@ -99,6 +99,11 @@ class DriveAccountManager {
       await keytar.deletePassword(KEYCHAIN_CONFIG.service, keytarAccount)
     } catch (err) {}
 
+    try {
+      const filePath = this._tokenFilePath(accountId)
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+    } catch (err) {}
+
     this.accountsContainer.accounts = this.listAccounts().filter(a => a.id !== accountId)
     if (this.accountsContainer.defaultAccountId === accountId) {
       this.accountsContainer.defaultAccountId = this.accountsContainer.accounts.length
@@ -170,6 +175,11 @@ class DriveAccountManager {
       await keytar.setPassword(KEYCHAIN_CONFIG.service, keytarAccount, savedStr)
     } catch (err) {}
 
+    // Always persist to disk as fallback for Linux environments
+    try {
+      fs.writeFileSync(this._tokenFilePath(accountId), savedStr, 'utf8')
+    } catch (err) {}
+
     try {
       await keytar.deletePassword(KEYCHAIN_CONFIG.service, KEYCHAIN_CONFIG.account)
     } catch (err) {}
@@ -221,25 +231,44 @@ class DriveAccountManager {
     return accountMeta
   }
 
+  _tokenFilePath(accountId) {
+    return path.join(this.dataPath, `drive_tokens_${accountId}.json`)
+  }
+
   async loadTokensForAccount(accountId) {
+    // Try keytar first
     try {
       const keytarAccount = `${KEYCHAIN_CONFIG.account}:${accountId}`
       const savedStr = await keytar.getPassword(KEYCHAIN_CONFIG.service, keytarAccount)
-      if (!savedStr) return null
-      return JSON.parse(savedStr)
-    } catch (err) {
-      return null
-    }
+      if (savedStr) return JSON.parse(savedStr)
+    } catch (err) {}
+
+    // Fallback: disk file (needed on Linux where keytar/libsecret may be unavailable)
+    try {
+      const filePath = this._tokenFilePath(accountId)
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf8')
+        return JSON.parse(raw)
+      }
+    } catch (err) {}
+
+    return null
   }
 
   async saveTokensForAccount(accountId, tokenObj) {
+    let savedToKeytar = false
     try {
       const keytarAccount = `${KEYCHAIN_CONFIG.account}:${accountId}`
       await keytar.setPassword(KEYCHAIN_CONFIG.service, keytarAccount, JSON.stringify(tokenObj))
-      return true
-    } catch (err) {
-      return false
-    }
+      savedToKeytar = true
+    } catch (err) {}
+
+    // Always persist to disk as fallback
+    try {
+      fs.writeFileSync(this._tokenFilePath(accountId), JSON.stringify(tokenObj, null, 2), 'utf8')
+    } catch (err) {}
+
+    return savedToKeytar
   }
 
   async fixExistingAccountNames() {
@@ -373,47 +402,7 @@ class DriveAccountManager {
 
   async getFolders(accountId) {
     try {
-      const tokens = await this.loadTokensForAccount(accountId)
-      if (!tokens || !tokens.accessToken) {
-        throw new Error('No access token available for account')
-      }
-
-      const environment = require('../config/environment')
-      const query = "mimeType='application/vnd.google-apps.folder' and trashed=false"
-      const fields = 'files(id,name,webViewLink)'
-
-      const url = new URL(`${environment.getDriveApiBase()}/files`)
-      url.searchParams.set('q', query)
-      url.searchParams.set('fields', fields)
-      url.searchParams.set('pageSize', '100')
-
-      const userInfoResponse = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
-        headers: { Authorization: `Bearer ${tokens.accessToken}` }
-      })
-
-      if (userInfoResponse.ok) {
-        const userInfo = await userInfoResponse.json()
-      }
-
-      const response = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${tokens.accessToken}` }
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Drive API error: ${response.status} ${response.statusText} - ${errorText}`)
-      }
-
-      const data = await response.json()
-      const folders = data.files || []
-
-      const rootFolder = {
-        id: 'root',
-        name: 'My Drive (Root)',
-        webViewLink: 'https://drive.google.com/drive/my-drive'
-      }
-
-      return [rootFolder, ...folders]
+      return await this.driveService.getFolders(accountId)
     } catch (err) {
       throw new Error(`Failed to get folders for account: ${err.message}`)
     }
@@ -421,40 +410,7 @@ class DriveAccountManager {
 
   async getFoldersPaged(accountId, options = {}) {
     try {
-      const tokens = await this.loadTokensForAccount(accountId)
-      if (!tokens || !tokens.accessToken) {
-        throw new Error('No access token available for account')
-      }
-
-      const environment = require('../config/environment')
-      const { pageSize = 40, pageToken = null, nameQuery = '' } = options
-
-      const qParts = ["mimeType='application/vnd.google-apps.folder'", 'trashed=false']
-      if (nameQuery && nameQuery.trim()) {
-        const escaped = nameQuery.replace(/'/g, "\\'")
-        qParts.push(`name contains '${escaped}'`)
-      }
-
-      const url = new URL(`${environment.getDriveApiBase()}/files`)
-      url.searchParams.set('q', qParts.join(' and '))
-      url.searchParams.set('fields', 'nextPageToken,files(id,name,webViewLink)')
-      url.searchParams.set('pageSize', String(pageSize))
-      if (pageToken) url.searchParams.set('pageToken', pageToken)
-
-      const response = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${tokens.accessToken}` }
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Drive API error: ${response.status} ${response.statusText} - ${errorText}`)
-      }
-
-      const data = await response.json()
-      return {
-        files: data.files || [],
-        nextPageToken: data.nextPageToken || null
-      }
+      return await this.driveService.getFoldersPaged({ ...options, accountId })
     } catch (err) {
       throw new Error(`Failed to get paged folders for account: ${err.message}`)
     }
