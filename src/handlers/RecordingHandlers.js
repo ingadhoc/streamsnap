@@ -21,6 +21,13 @@ class RecordingHandlers {
 
     ipcMain.handle('start-recording', async () => {
       try {
+        // On Linux the source is chosen via the OS display-media picker (getDisplayMedia),
+        // so the renderer never goes through the custom source selector and selectedSource
+        // is not set in the main process. Provide a placeholder so validation passes.
+        if (process.platform === 'linux' && !this.app.recordingManager.selectedSource) {
+          this.app.recordingManager.setSelectedSource({ id: 'linux-display-media', name: 'Screen Capture' })
+        }
+
         const validation = this.app.recordingManager.validateRecordingPrerequisites()
         if (!validation.isValid) {
           return { success: false, errors: validation.errors }

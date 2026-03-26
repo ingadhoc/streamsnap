@@ -31,7 +31,12 @@ class SourceSelector {
     if (this.isObserving) return
 
     this.isObserving = true
-    this.setupSystemObservers()
+    // On Linux/Wayland each call to getDesktopSources() opens the XDG portal.
+    // Focus/visibility events would re-trigger that portal causing an infinite loop,
+    // so only the MutationObserver (safe, DOM-only) is set up on Linux.
+    if (window.electronAPI?.platform !== 'linux') {
+      this.setupSystemObservers()
+    }
     this.setupMutationObserver()
   }
 
@@ -85,10 +90,12 @@ class SourceSelector {
   }
 
   onWindowFocus() {
+    if (window.electronAPI?.platform === 'linux') return
     this.checkForSourceChanges()
   }
 
   onVisibilityChange() {
+    if (window.electronAPI?.platform === 'linux') return
     if (!document.hidden) {
       this.checkForSourceChanges()
     }
@@ -189,7 +196,10 @@ class SourceSelector {
       windowInfoBanner.classList.remove('hidden')
     }
 
-    this.checkForSourceChanges()
+    // On Linux, switching tabs must not trigger getDesktopSources() (portal loop).
+    if (window.electronAPI?.platform !== 'linux') {
+      this.checkForSourceChanges()
+    }
   }
 
   async loadSources() {
