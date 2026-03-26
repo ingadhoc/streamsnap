@@ -1,5 +1,11 @@
-const { app } = require('electron')
+const { app, session } = require('electron')
 const environment = require('./src/config/environment')
+
+// Enable PipeWire screen-capture support on Linux/Wayland before the app is ready.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
+}
+
 const WindowManager = require('./src/services/WindowManager')
 const RecordingManager = require('./src/services/RecordingManager')
 const DriveService = require('./src/services/DriveService')
@@ -91,6 +97,17 @@ class StreamSnapApp {
   async handleAppReady() {
     try {
       RecoveryManager.cleanupOldVideos().catch(() => {})
+
+      // On Linux, getDisplayMedia() requires a handler in Electron 32+;
+      // without it the renderer receives NotSupportedError.
+      // Using useSystemPicker delegates the entire screen/window/tab picker to
+      // the OS (XDG portal on Wayland, native picker on X11) in a single dialog,
+      // avoiding the double-portal loop that the previous getSources() approach caused.
+      if (process.platform === 'linux') {
+        session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+          callback({ useSystemPicker: true })
+        }, { useSystemPicker: true })
+      }
 
       await this.windowManager.createMainWindow()
       this.isInitialized = true

@@ -279,12 +279,6 @@ class ScreenRecorder {
 
   async openSourceSelector() {
     try {
-      if (window.electronAPI?.platform === 'linux') {
-        // Linux/Wayland portals can loop when mixing a custom source picker with desktop constraints.
-        await this.startRecordingWithSource({ id: 'linux-display-media', name: 'Screen Capture' })
-        return
-      }
-
       await window.electronAPI.openSourceSelector()
     } catch (error) {
       alert('Failed to open source selector')
@@ -360,10 +354,6 @@ class ScreenRecorder {
   async createMediaStream(source) {
     const wantsMicrophone = this.settingsManager.settings.recordMicrophone
     const wantsSystemAudio = this.settingsManager.settings.recordSystemAudio
-
-    if (window.electronAPI?.platform === 'linux' && navigator.mediaDevices?.getDisplayMedia) {
-      return await this.createLinuxDisplayMediaStream({ wantsMicrophone, wantsSystemAudio })
-    }
 
     if (!wantsMicrophone && !wantsSystemAudio) {
       return await navigator.mediaDevices.getUserMedia({
