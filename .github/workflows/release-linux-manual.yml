@@ -45,6 +45,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate OAuth secrets and create .env
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GOOGLE_CLIENT_ID:-}" ] || [ -z "${GOOGLE_CLIENT_SECRET:-}" ]; then
+            echo "Missing required OAuth secrets."
+            echo "Expected repository secrets: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET"
+            exit 1
+          fi
+
+          {
+            echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+            echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
+          } > .env
+
+          chmod 600 .env
+          echo "Created .env for packaged build."
+
       - name: Generate release tag
         id: tag
         shell: bash
