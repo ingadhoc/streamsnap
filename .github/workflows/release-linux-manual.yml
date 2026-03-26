@@ -49,12 +49,34 @@ jobs:
           set -euo pipefail
 
           VERSION="$(node -p "require('./package.json').version")"
-          BASE_TAG="v${VERSION}"
-          TAG="${BASE_TAG}"
-
-          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            TAG="${BASE_TAG}-linux.${GITHUB_RUN_NUMBER}"
+          if [[ ! "${VERSION}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Invalid package.json version: ${VERSION}"
+            exit 1
           fi
+
+          MAJOR="${BASH_REMATCH[1]}"
+          MINOR="${BASH_REMATCH[2]}"
+          PATCH="${BASH_REMATCH[3]}"
+
+          PATTERN="^v${MAJOR}\\.${MINOR}\\.([0-9]+)$"
+          MAX_PATCH=""
+
+          while IFS= read -r ref; do
+            TAG_NAME="${ref#refs/tags/}"
+            if [[ "${TAG_NAME}" =~ ${PATTERN} ]]; then
+              CANDIDATE_PATCH="${BASH_REMATCH[1]}"
+              if [[ -z "${MAX_PATCH}" || "${CANDIDATE_PATCH}" -gt "${MAX_PATCH}" ]]; then
+                MAX_PATCH="${CANDIDATE_PATCH}"
+              fi
+            fi
+          done < <(git ls-remote --tags --refs origin)
+
+          NEXT_PATCH="${PATCH}"
+          if [[ -n "${MAX_PATCH}" && "${MAX_PATCH}" -ge "${PATCH}" ]]; then
+            NEXT_PATCH="$((MAX_PATCH + 1))"
+          fi
+
+          TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
 
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Using tag: ${TAG}"
