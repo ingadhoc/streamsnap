@@ -110,29 +110,88 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Ensure tag exists on remote
+      - name: Create next available tag on remote
+        id: ensure_tag
         env:
           TAG: ${{ steps.tag.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "Tag ${TAG} already exists on origin."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git tag -a "${TAG}" -m "Release ${TAG}"
-          git push origin "refs/tags/${TAG}"
+          CANDIDATE_TAG="${TAG}"
+
+          for attempt in $(seq 1 20); do
+            if git ls-remote --exit-code --tags origin "refs/tags/${CANDIDATE_TAG}" >/dev/null 2>&1; then
+              if [[ ! "${CANDIDATE_TAG}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+                echo "Cannot auto-increment non-semver tag: ${CANDIDATE_TAG}"
+                exit 1
+              fi
+
+              MAJOR="${BASH_REMATCH[1]}"
+              MINOR="${BASH_REMATCH[2]}"
+              PATCH="${BASH_REMATCH[3]}"
+              CANDIDATE_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+              echo "Tag already exists, trying ${CANDIDATE_TAG}"
+              continue
+            fi
+
+            git tag -a "${CANDIDATE_TAG}" -m "Release ${CANDIDATE_TAG}"
+            if git push origin "refs/tags/${CANDIDATE_TAG}"; then
+              echo "tag=${CANDIDATE_TAG}" >> "$GITHUB_OUTPUT"
+              echo "Using final tag: ${CANDIDATE_TAG}"
+              exit 0
+            fi
+
+            git tag -d "${CANDIDATE_TAG}" >/dev/null 2>&1 || true
+
+            if [[ ! "${CANDIDATE_TAG}" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              echo "Cannot auto-increment non-semver tag after push failure: ${CANDIDATE_TAG}"
+              exit 1
+            fi
+
+            MAJOR="${BASH_REMATCH[1]}"
+            MINOR="${BASH_REMATCH[2]}"
+            PATCH="${BASH_REMATCH[3]}"
+            CANDIDATE_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+            echo "Push race detected, retrying with ${CANDIDATE_TAG}"
+          done
+
+          echo "Failed to allocate a unique release tag after 20 attempts."
+          exit 1
+
+      - name: Ensure release does not already exist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ensure_tag.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          API_URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}"
+          HTTP_STATUS="$(curl -sS -o /tmp/release_by_tag.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${API_URL}")"
+
+          if [ "${HTTP_STATUS}" = "200" ]; then
+            echo "A release for tag ${TAG} already exists. Refusing to overwrite."
+            exit 1
+          fi
+
+          if [ "${HTTP_STATUS}" != "404" ]; then
+            echo "Unexpected GitHub API response (${HTTP_STATUS}) while checking release for ${TAG}."
+            cat /tmp/release_by_tag.json
+            exit 1
+          fi
 
       - name: Resolve release name
         id: naming
         env:
           RELEASE_NAME: ${{ inputs.release_name }}
-          TAG: ${{ steps.tag.outputs.tag }}
+          TAG: ${{ steps.ensure_tag.outputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -146,7 +205,7 @@ jobs:
       - name: Create or update GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ steps.ensure_tag.outputs.tag }}
           name: ${{ steps.naming.outputs.name }}
           files: ${{ steps.artifacts.outputs.files }}
           prerelease: ${{ inputs.prerelease }}
