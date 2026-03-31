@@ -169,6 +169,21 @@ class DriveHandlers {
         return { success: false, error: error.message }
       }
     })
+
+    ipcMain.handle('drive-rename-file', async (event, options) => {
+      try {
+        const { accountId, fileId, fileName } = options || {}
+
+        if (!accountId || !fileId || !fileName) {
+          return { success: false, error: 'Missing required parameters' }
+        }
+
+        const result = await this.app.driveService.renameFile(accountId, fileId, fileName)
+        return { success: true, ...result }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
   }
 }
 

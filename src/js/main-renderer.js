@@ -809,7 +809,7 @@ class ScreenRecorder {
       this.uiManager.hideConversionProgress()
       if (result.autoSaved) {
         this.uiManager.updateRecordingStatus(
-          `Auto-saved to Drive (${result.uploadedCount || 0} account${result.uploadedCount === 1 ? '' : 's'})`,
+          `Auto-saved to Drive (${result.uploadedCount || 0} account${result.uploadedCount === 1 ? '' : 's'}) - review Open & Copy modal`,
           'complete'
         )
       } else if (result.autoSaveAttempted && result.autoSaveUploadedCount > 0) {

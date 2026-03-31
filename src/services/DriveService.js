@@ -580,6 +580,51 @@ class DriveService {
     }
   }
 
+  async renameFile(accountId, fileId, fileName) {
+    try {
+      if (accountId) {
+        try {
+          const keytarAccount = `${KEYCHAIN_CONFIG.account}:${accountId}`
+          const savedStr = await keytar.getPassword(KEYCHAIN_CONFIG.service, keytarAccount)
+          if (savedStr) {
+            const parsed = JSON.parse(savedStr)
+            if (parsed.accessToken) this.accessToken = parsed.accessToken
+            if (parsed.refreshToken) this.refreshToken = parsed.refreshToken
+            if (parsed.tokenExpiry) this.tokenExpiry = parsed.tokenExpiry
+          }
+        } catch (err) {}
+      }
+
+      if (!(await this.ensureValidAccessToken(accountId))) {
+        throw new Error('Not authenticated with Google Drive')
+      }
+
+      const response = await fetch(`${environment.getDriveApiBase()}/files/${fileId}?fields=id,name,webViewLink`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name: fileName })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Drive rename error: ${response.status} ${errorText}`)
+      }
+
+      const result = await response.json()
+
+      return {
+        fileId: result.id || fileId,
+        fileName: result.name || fileName,
+        webViewLink: result.webViewLink || `https://drive.google.com/file/d/${fileId}/view`
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+
   async isOrganizationalDrive() {
     try {
       const domainInfo = await this.getUserDomain()

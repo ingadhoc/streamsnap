@@ -77,6 +77,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   uploadToDriveAccount: (accountId, folderId, videoData, fileName, privacy) =>
     ipcRenderer.invoke('upload-to-drive-account', accountId, folderId, videoData, fileName, privacy),
   saveToDriveAccount: options => ipcRenderer.invoke('save-to-drive-account', options),
+  driveRenameFile: options => ipcRenderer.invoke('drive-rename-file', options),
   driveAccountReauth: accountId => ipcRenderer.invoke('drive-account-reauth', accountId),
 
   driveIsAuthenticated: () => ipcRenderer.invoke('drive-is-authenticated'),

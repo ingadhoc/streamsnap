@@ -8,6 +8,7 @@ class SaveVideoHandler {
     this.activeYouTubeAccounts = []
     this.selectedAccounts = new Map()
     this.selectedYouTubeAccounts = new Set()
+    this.autoSaveSuccessModalShown = false
 
     this.initializeUI()
     this.loadSaveOptions()
@@ -179,6 +180,7 @@ class SaveVideoHandler {
 
     await this.loadActiveAccounts()
     this.configureSaveOptions()
+    this.showAutoSaveSuccessModalIfNeeded()
 
     if (window.electronAPI && window.electronAPI.onInitSaveOptions) {
       window.electronAPI.onInitSaveOptions(async data => {
@@ -187,10 +189,71 @@ class SaveVideoHandler {
             this.saveOptions = data
             await this.loadActiveAccounts()
             this.configureSaveOptions()
+            this.showAutoSaveSuccessModalIfNeeded()
           }
         } catch (e) {}
       })
     }
+  }
+
+  showAutoSaveSuccessModalIfNeeded() {
+    if (this.autoSaveSuccessModalShown) return
+
+    const uploads = Array.isArray(this.saveOptions?.autoSaveUploads) ? this.saveOptions.autoSaveUploads : []
+    const autoSaved = this.saveOptions?.autoSaved === true
+
+    if (!autoSaved || uploads.length === 0) return
+
+    if (typeof UploadSuccessModal === 'undefined') {
+      this.showSuccess(`Auto-saved to Drive (${uploads.length} account${uploads.length === 1 ? '' : 's'})`)
+      this.autoSaveSuccessModalShown = true
+      return
+    }
+
+    const fileNameInput = document.getElementById('fileName')
+    const initialTitle = (fileNameInput && fileNameInput.value && fileNameInput.value.trim()) || uploads[0].fileName
+
+    const modal = new UploadSuccessModal()
+    modal.showAutoSaveDrive(
+      uploads,
+      initialTitle,
+      async nextTitle => {
+        if (!window.electronAPI || !window.electronAPI.driveRenameFile) {
+          return { success: false, updatedCount: 0, total: uploads.length }
+        }
+
+        const normalizedTitle = this.ensureOutputExtension(nextTitle.trim())
+        let updatedCount = 0
+
+        for (const upload of uploads) {
+          try {
+            const result = await window.electronAPI.driveRenameFile({
+              accountId: upload.accountId,
+              fileId: upload.fileId,
+              fileName: normalizedTitle
+            })
+
+            if (result && result.success) {
+              upload.fileName = result.fileName || normalizedTitle
+              updatedCount += 1
+            }
+          } catch (error) {}
+        }
+
+        if (fileNameInput && updatedCount > 0) {
+          fileNameInput.value = normalizedTitle.replace(/\.(mp4|webm)$/i, '')
+        }
+
+        return {
+          success: updatedCount > 0,
+          updatedCount,
+          total: uploads.length,
+          fileName: normalizedTitle
+        }
+      }
+    )
+
+    this.autoSaveSuccessModalShown = true
   }
 
   async loadActiveAccounts() {
@@ -430,9 +493,17 @@ class SaveVideoHandler {
 
       if (result && result.success) {
         if (result.webViewLink || result.fileId) {
-          this.showUploadSuccessModal(
-            account.displayName || account.email,
-            result.webViewLink,
+          this.showDriveSaveSuccessModal(
+            {
+              accountId: account.id,
+              accountName: account.displayName || account.email || 'Drive account',
+              accountEmail: account.email || '',
+              folderId: selectedFolderId,
+              folderName: account.currentFolderName || account.defaultFolderName || 'Drive Folder',
+              fileId: result.fileId,
+              fileName: result.fileName || fileName,
+              webViewLink: result.webViewLink
+            },
             result.fileName || fileName
           )
         } else {
@@ -513,7 +584,7 @@ class SaveVideoHandler {
       this.showSavingState(false)
 
       if (result && result.success) {
-        this.showSuccess('Video saved successfully to your computer!')
+        this.showLocalSaveSuccessModal(result.filePath || `${folder}/${fileName}`, fileName)
       } else {
         this.showError('Failed to save video locally')
       }
@@ -704,6 +775,73 @@ class SaveVideoHandler {
       })
     } catch (error) {
       this.showSuccess('Video uploaded successfully!')
+    }
+  }
+
+  showDriveSaveSuccessModal(upload, initialTitle) {
+    try {
+      if (typeof UploadSuccessModal === 'undefined') {
+        this.showSuccess('Video uploaded successfully!')
+        return
+      }
+
+      const uploads = [upload]
+      const modal = new UploadSuccessModal()
+      modal.showAutoSaveDrive(uploads, initialTitle, async nextTitle => {
+        if (!window.electronAPI || !window.electronAPI.driveRenameFile) {
+          return { success: false, updatedCount: 0, total: uploads.length }
+        }
+
+        const normalizedTitle = this.ensureOutputExtension((nextTitle || '').trim())
+        let updatedCount = 0
+
+        for (const item of uploads) {
+          if (!item.accountId || !item.fileId) {
+            continue
+          }
+
+          try {
+            const result = await window.electronAPI.driveRenameFile({
+              accountId: item.accountId,
+              fileId: item.fileId,
+              fileName: normalizedTitle
+            })
+
+            if (result && result.success) {
+              item.fileName = result.fileName || normalizedTitle
+              updatedCount += 1
+            }
+          } catch (error) {}
+        }
+
+        const fileNameInput = document.getElementById('fileName')
+        if (fileNameInput && updatedCount > 0) {
+          fileNameInput.value = normalizedTitle.replace(/\.(mp4|webm)$/i, '')
+        }
+
+        return {
+          success: updatedCount > 0,
+          updatedCount,
+          total: uploads.length,
+          fileName: normalizedTitle
+        }
+      })
+    } catch (error) {
+      this.showSuccess('Video uploaded successfully!')
+    }
+  }
+
+  showLocalSaveSuccessModal(filePath, fileName) {
+    try {
+      if (typeof UploadSuccessModal === 'undefined') {
+        this.showSuccess('Video saved successfully to your computer!')
+        return
+      }
+
+      const modal = new UploadSuccessModal()
+      modal.showLocalSave(filePath, fileName)
+    } catch (error) {
+      this.showSuccess('Video saved successfully to your computer!')
     }
   }
 

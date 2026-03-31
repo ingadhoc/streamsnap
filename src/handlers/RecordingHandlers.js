@@ -468,34 +468,33 @@ class RecordingHandlers {
 
     const autoSaveResult = await this.tryAutoSaveToDrive(tempPath, outputFormat, settings)
 
-    if (autoSaveResult.autoSaved) {
-      return {
-        success: true,
-        outputFormat,
-        autoSaved: true,
-        uploadedCount: autoSaveResult.uploadedCount,
-        totalAccounts: autoSaveResult.totalAccounts
-      }
-    }
-
     const hasDriveAccounts = DriveAccountManager.getActiveAccounts().length > 0
     const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
 
     this.app.windowManager.showMainWindow()
+
     await this.app.windowManager.createSaveWindow({
       showDriveOption: Boolean(hasDriveAccounts),
       showYouTubeOption: Boolean(hasYouTubeAccounts),
       showDriveSignIn: !this.app.driveService.isAuthenticated(),
       showLocalOption: true,
       tempVideoPath: tempPath,
-      driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
+      driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined,
+      autoSaved: autoSaveResult.autoSaved,
+      autoSaveAttempted: autoSaveResult.attempted,
+      autoSaveUploadedCount: autoSaveResult.uploadedCount,
+      autoSaveTotalAccounts: autoSaveResult.totalAccounts,
+      autoSaveUploads: autoSaveResult.uploads,
+      autoSaveFailedAccounts: autoSaveResult.failedAccounts
     })
 
     return {
       success: true,
       tempPath,
       outputFormat,
-      autoSaved: false,
+      autoSaved: autoSaveResult.autoSaved,
+      uploadedCount: autoSaveResult.uploadedCount,
+      totalAccounts: autoSaveResult.totalAccounts,
       autoSaveAttempted: autoSaveResult.attempted,
       autoSaveUploadedCount: autoSaveResult.uploadedCount,
       autoSaveTotalAccounts: autoSaveResult.totalAccounts
@@ -517,7 +516,7 @@ class RecordingHandlers {
     const selectedIds = Array.isArray(settings?.driveAutoSaveAccountIds) ? settings.driveAutoSaveAccountIds : []
 
     if (!enabled || selectedIds.length === 0) {
-      return { attempted: false, autoSaved: false, uploadedCount: 0, totalAccounts: 0 }
+      return { attempted: false, autoSaved: false, uploadedCount: 0, totalAccounts: 0, uploads: [], failedAccounts: [] }
     }
 
     const activeAccounts = DriveAccountManager.getActiveAccounts()
@@ -525,7 +524,7 @@ class RecordingHandlers {
     const targetAccounts = selectedAccounts.filter(account => account.defaultFolderId)
 
     if (targetAccounts.length === 0) {
-      return { attempted: true, autoSaved: false, uploadedCount: 0, totalAccounts: 0 }
+      return { attempted: true, autoSaved: false, uploadedCount: 0, totalAccounts: 0, uploads: [], failedAccounts: [] }
     }
 
     try {
@@ -533,10 +532,12 @@ class RecordingHandlers {
       const fileName = this.createAutoSaveFileName(outputFormat)
 
       let uploadedCount = 0
+      const uploads = []
+      const failedAccounts = []
 
       for (const account of targetAccounts) {
         try {
-          await this.app.driveService.uploadVideo(
+          const uploadResult = await this.app.driveService.uploadVideo(
             account.id,
             account.defaultFolderId,
             videoData,
@@ -544,26 +545,44 @@ class RecordingHandlers {
             account.privacy || 'restricted'
           )
           uploadedCount += 1
-        } catch (error) {}
+          uploads.push({
+            accountId: account.id,
+            accountName: account.displayName || account.email || `Account ${account.id}`,
+            accountEmail: account.email || '',
+            folderId: account.defaultFolderId,
+            folderName: account.defaultFolderName || 'Drive Folder',
+            fileId: uploadResult.fileId,
+            fileName: uploadResult.fileName || fileName,
+            webViewLink: uploadResult.webViewLink
+          })
+        } catch (error) {
+          failedAccounts.push({
+            accountId: account.id,
+            accountName: account.displayName || account.email || `Account ${account.id}`,
+            error: error?.message || 'Upload failed'
+          })
+        }
       }
 
       const allSucceeded = uploadedCount === targetAccounts.length
-      if (allSucceeded) {
-        try {
-          await fs.unlink(tempPath)
-        } catch (e) {}
-
-        this.app.recordingManager.clearRecordedVideoData()
-      }
 
       return {
         attempted: true,
         autoSaved: allSucceeded,
         uploadedCount,
-        totalAccounts: targetAccounts.length
+        totalAccounts: targetAccounts.length,
+        uploads,
+        failedAccounts
       }
     } catch (error) {
-      return { attempted: true, autoSaved: false, uploadedCount: 0, totalAccounts: targetAccounts.length }
+      return {
+        attempted: true,
+        autoSaved: false,
+        uploadedCount: 0,
+        totalAccounts: targetAccounts.length,
+        uploads: [],
+        failedAccounts: []
+      }
     }
   }
 
