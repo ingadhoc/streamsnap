@@ -28,11 +28,11 @@ class ScreenRecorder {
 
         if (data.stage === 'started' || data.stage === 'progress') {
           this.uiManager.showConversionProgress(data.percent)
-          this.uiManager.updateRecordingStatus('Converting to MP4...', 'recording')
+          this.uiManager.updateRecordingStatus(data.message || 'Converting to MP4...', 'recording')
           this.uiManager.disableStartButton()
         } else if (data.stage === 'completed') {
           this.uiManager.showConversionProgress(100)
-          this.uiManager.updateRecordingStatus('MP4 conversion completed', 'recording')
+          this.uiManager.updateRecordingStatus(data.message || 'Conversion completed', 'recording')
         } else if (data.stage === 'failed') {
           this.uiManager.hideConversionProgress()
           this.uiManager.updateRecordingStatus(data.message || 'Error converting to MP4', 'ready')
@@ -98,9 +98,20 @@ class ScreenRecorder {
 
   setupSettingsControls() {
     this.setupAudioControls()
+    this.setupVideoOutputControls()
     this.setupCountdownControls()
     this.setupFolderControls()
     this.setupDriveControls()
+  }
+
+  setupVideoOutputControls() {
+    const enableMp4ConversionEl = document.getElementById('enableMp4Conversion')
+    if (!enableMp4ConversionEl) return
+
+    enableMp4ConversionEl.addEventListener('change', e => {
+      this.settingsManager.settings.enableMp4Conversion = e.target.checked
+      this.settingsManager.saveSettings()
+    })
   }
 
   setupAudioControls() {
@@ -644,7 +655,9 @@ class ScreenRecorder {
       const arrayBuffer = await blob.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
 
-      const result = await window.electronAPI.saveRecordedVideoToTemp(uint8Array, includedDuration)
+      const result = await window.electronAPI.saveRecordedVideoToTemp(uint8Array, includedDuration, {
+        convertToMp4: this.settingsManager.settings.enableMp4Conversion !== false
+      })
 
       if (!result || !result.success) {
         throw new Error(result?.error || 'Failed to save recording')

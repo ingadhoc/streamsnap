@@ -19,7 +19,8 @@ class SettingsManager {
       drive: { accessToken: '', folderId: '', folderName: '', videoPrivacy: 'restricted' },
       enableCountdown: true,
       countdownDuration: 5,
-      saveFolderPath: ''
+      saveFolderPath: '',
+      enableMp4Conversion: true
     }
   }
 
@@ -69,6 +70,8 @@ class SettingsManager {
 
     document.getElementById('enableCountdown').checked = this.settings.enableCountdown
     document.getElementById('countdownDuration').value = this.settings.countdownDuration || 5
+    const enableMp4ConversionEl = document.getElementById('enableMp4Conversion')
+    if (enableMp4ConversionEl) enableMp4ConversionEl.checked = this.settings.enableMp4Conversion !== false
     this.updateCountdownOptionsVisibility()
   }
 

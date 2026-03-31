@@ -25,7 +25,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   saveVideo: videoData => ipcRenderer.invoke('save-video', videoData),
   setRecordedVideo: data => ipcRenderer.invoke('set-recorded-video', data),
-  saveRecordedVideoToTemp: (blob, duration) => ipcRenderer.invoke('save-recorded-video-to-temp', blob, duration),
+  saveRecordedVideoToTemp: (blob, duration, options) =>
+    ipcRenderer.invoke('save-recorded-video-to-temp', blob, duration, options),
   discardRecordedVideo: () => ipcRenderer.invoke('discard-recorded-video'),
   setRecordedDuration: seconds => ipcRenderer.invoke('set-recorded-duration', seconds),
   getMainWindowData: () => ipcRenderer.invoke('get-main-window-data'),

@@ -86,6 +86,28 @@ class SaveVideoHandler {
     }
   }
 
+  getOutputExtension() {
+    const tempPath = this.saveOptions && this.saveOptions.tempVideoPath
+    if (typeof tempPath === 'string') {
+      const lowerPath = tempPath.toLowerCase()
+      if (lowerPath.endsWith('.webm')) return 'webm'
+    }
+    return 'mp4'
+  }
+
+  getOutputMimeType() {
+    return this.getOutputExtension() === 'webm' ? 'video/webm' : 'video/mp4'
+  }
+
+  ensureOutputExtension(fileName) {
+    const extension = this.getOutputExtension()
+    const suffix = `.${extension}`
+    if (!fileName.toLowerCase().endsWith(suffix)) {
+      return `${fileName}${suffix}`
+    }
+    return fileName
+  }
+
   refreshAccountsUI() {
     this.loadActiveAccounts()
       .then(() => {
@@ -377,10 +399,7 @@ class SaveVideoHandler {
   async saveToDriveAccount(account) {
     try {
       let fileName = document.getElementById('fileName').value.trim() || 'recording'
-
-      if (!fileName.toLowerCase().endsWith('.mp4')) {
-        fileName += '.mp4'
-      }
+      fileName = this.ensureOutputExtension(fileName)
 
       if (!this.videoBlob) {
         this.showError('No video data available')
@@ -464,10 +483,7 @@ class SaveVideoHandler {
   async saveToLocal() {
     try {
       let fileName = document.getElementById('fileName').value.trim() || 'recording'
-
-      if (!fileName.toLowerCase().endsWith('.mp4')) {
-        fileName += '.mp4'
-      }
+      fileName = this.ensureOutputExtension(fileName)
 
       if (!this.videoBlob) {
         this.showError('No video data available')
@@ -541,7 +557,7 @@ class SaveVideoHandler {
       this.videoObjectUrl = null
     }
 
-    this.videoObjectUrl = URL.createObjectURL(new Blob([blobData], { type: 'video/mp4' }))
+    this.videoObjectUrl = URL.createObjectURL(new Blob([blobData], { type: this.getOutputMimeType() }))
     video.src = this.videoObjectUrl
   }
 

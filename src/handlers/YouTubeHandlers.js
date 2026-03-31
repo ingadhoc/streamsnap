@@ -92,6 +92,7 @@ class YouTubeHandlers {
 
     ipcMain.handle('save-to-youtube-account', async (event, options) => {
       const fs = require('fs').promises
+      const path = require('path')
 
       try {
         const { accountId, videoData, title, description, privacy, playlistId } = options
@@ -109,7 +110,15 @@ class YouTubeHandlers {
           }
         }
 
-        const uploadOptions = { privacy }
+        let mimeType = 'video/mp4'
+        if (tempPath) {
+          const ext = path.extname(tempPath).toLowerCase()
+          if (ext === '.webm') {
+            mimeType = 'video/webm'
+          }
+        }
+
+        const uploadOptions = { privacy, mimeType }
         if (playlistId) {
           uploadOptions.playlistId = playlistId
         }

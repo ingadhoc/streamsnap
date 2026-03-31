@@ -242,6 +242,7 @@ class YouTubeService {
       }
 
       const privacyStatus = options.privacy || 'private'
+      const mimeType = options.mimeType === 'video/webm' ? 'video/webm' : 'video/mp4'
 
       const videoBuffer = Buffer.from(videoData)
       const boundary = `streamsnap-${crypto.randomBytes(12).toString('hex')}`
@@ -263,7 +264,7 @@ class YouTubeService {
       )
       const videoHeaderPart = Buffer.from(
         `--${boundary}\r\n` +
-          'Content-Type: video/mp4\r\n\r\n'
+          `Content-Type: ${mimeType}\r\n\r\n`
       )
       const closingPart = Buffer.from(`\r\n--${boundary}--\r\n`)
       const requestBody = Buffer.concat([metadataPart, videoHeaderPart, videoBuffer, closingPart])

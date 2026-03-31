@@ -7,6 +7,7 @@ class RecordingHandlers {
   constructor(app) {
     this.app = app
     this.registeredStartShortcut = null
+    this.isSaveConversionInProgress = false
     this.setupHandlers()
   }
 
@@ -138,10 +139,11 @@ class RecordingHandlers {
       }
     })
 
-    ipcMain.handle('save-recorded-video-to-temp', async (event, videoBuffer, duration) => {
+    ipcMain.handle('save-recorded-video-to-temp', async (event, videoBuffer, duration, options = {}) => {
       const fs = require('fs').promises
       const path = require('path')
       const os = require('os')
+      const conversionEnabled = options.convertToMp4 !== false
       const parseTimemarkToSeconds = timemark => {
         if (!timemark || typeof timemark !== 'string') return null
 
@@ -158,6 +160,12 @@ class RecordingHandlers {
       }
 
       try {
+        if (this.isSaveConversionInProgress) {
+          return { success: false, error: 'Conversion already in progress. Please wait for it to finish.' }
+        }
+
+        this.isSaveConversionInProgress = true
+
         const tempDir = path.join(os.tmpdir(), 'streamsnap-recordings')
         await fs.mkdir(tempDir, { recursive: true })
 
@@ -167,6 +175,35 @@ class RecordingHandlers {
 
         const buffer = Buffer.from(videoBuffer)
         await fs.writeFile(tempWebmPath, buffer)
+
+        if (!conversionEnabled) {
+          this.app.broadcastToWindows('recording-conversion-progress', {
+            stage: 'completed',
+            percent: 100,
+            message: 'MP4 conversion disabled. Keeping WebM format.'
+          })
+
+          this.app.recordingManager.setRecordedVideoPath(tempWebmPath)
+
+          if (duration != null) {
+            this.app.recordingManager.setRecordedVideoDuration(duration)
+          }
+
+          const hasDriveAccounts = DriveAccountManager.getActiveAccounts().length > 0
+          const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
+
+          this.app.windowManager.showMainWindow()
+          await this.app.windowManager.createSaveWindow({
+            showDriveOption: Boolean(hasDriveAccounts),
+            showYouTubeOption: Boolean(hasYouTubeAccounts),
+            showDriveSignIn: !this.app.driveService.isAuthenticated(),
+            showLocalOption: true,
+            tempVideoPath: tempWebmPath,
+            driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
+          })
+
+          return { success: true, tempPath: tempWebmPath, outputFormat: 'webm' }
+        }
 
         this.app.broadcastToWindows('recording-conversion-progress', {
           stage: 'started',
@@ -237,6 +274,8 @@ class RecordingHandlers {
           message: error.message || 'Error during MP4 conversion'
         })
         return { success: false, error: error.message }
+      } finally {
+        this.isSaveConversionInProgress = false
       }
     })
 

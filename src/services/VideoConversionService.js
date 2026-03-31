@@ -38,9 +38,34 @@ const ffmpegPath = resolvePackagedFfmpegPath(rawFfmpegPath)
 
 ffmpeg.setFfmpegPath(ffmpegPath)
 
+function parsePositiveInt(value, fallback) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return Math.floor(parsed)
+}
+
+function getConversionConfig(options = {}) {
+  const requestedThreads = options.threads
+  const envThreads = process.env.STREAMSNAP_FFMPEG_THREADS
+  const threads = parsePositiveInt(requestedThreads || envThreads, 2)
+
+  const preset =
+    (typeof options.preset === 'string' && options.preset.trim()) ||
+    (process.env.STREAMSNAP_FFMPEG_PRESET || 'ultrafast')
+
+  const crf = parsePositiveInt(options.crf || process.env.STREAMSNAP_FFMPEG_CRF, 24)
+
+  return {
+    threads,
+    preset,
+    crf
+  }
+}
+
 class VideoConversionService {
   static convertWebmToMp4(inputPath, outputPath, onProgress = null, options = {}) {
     const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 10 * 60 * 1000
+    const conversionConfig = getConversionConfig(options)
 
     if (!ffmpegPath || !fs.existsSync(ffmpegPath)) {
       return Promise.reject(new Error(`FFmpeg binary not found at path: ${ffmpegPath}`))
@@ -63,7 +88,12 @@ class VideoConversionService {
         .inputOptions(['-nostdin'])
         .videoCodec('libx264')
         .audioCodec('aac')
-        .outputOptions(['-preset veryfast', '-crf 22', '-movflags +faststart'])
+        .outputOptions([
+          `-preset ${conversionConfig.preset}`,
+          `-crf ${conversionConfig.crf}`,
+          `-threads ${conversionConfig.threads}`,
+          '-movflags +faststart'
+        ])
         .on('progress', progress => {
           if (typeof onProgress === 'function') {
             onProgress(progress)
@@ -87,6 +117,7 @@ class VideoConversionService {
 
   static trimVideo(inputPath, outputPath, startTime, endTime, options = {}) {
     const timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 10 * 60 * 1000
+    const conversionConfig = getConversionConfig(options)
     const safeStart = Math.max(0, Number(startTime) || 0)
     const safeEnd = Math.max(0, Number(endTime) || 0)
     const duration = safeEnd - safeStart
@@ -114,7 +145,12 @@ class VideoConversionService {
         .setDuration(duration)
         .videoCodec('libx264')
         .audioCodec('aac')
-        .outputOptions(['-preset veryfast', '-crf 22', '-movflags +faststart'])
+        .outputOptions([
+          `-preset ${conversionConfig.preset}`,
+          `-crf ${conversionConfig.crf}`,
+          `-threads ${conversionConfig.threads}`,
+          '-movflags +faststart'
+        ])
         .on('end', () => {
           if (settled) return
           settled = true

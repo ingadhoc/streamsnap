@@ -516,9 +516,12 @@ class DriveService {
         throw new Error('Not authenticated with Google Drive')
       }
 
+      const fileExtension = typeof fileName === 'string' ? path.extname(fileName).toLowerCase() : ''
+      const mimeType = fileExtension === '.webm' ? 'video/webm' : 'video/mp4'
+
       const metadata = {
         name: fileName,
-        mimeType: 'video/mp4',
+        mimeType,
         parents: [folderId]
       }
 
@@ -533,7 +536,7 @@ class DriveService {
         'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
         JSON.stringify(metadata) +
         delimiter +
-        'Content-Type: video/mp4\r\n' +
+        `Content-Type: ${mimeType}\r\n` +
         'Content-Transfer-Encoding: base64\r\n\r\n' +
         base64Data +
         closeDelim
