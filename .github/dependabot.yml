@@ -1,0 +1,50 @@
+# .github/dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    # Agrupaciones para reducir el ruido de PRs individuales
+    groups:
+      electron:
+        # Electron + plugins: agrupar minor/patch juntos; major siempre va solo
+        patterns:
+          - "electron"
+          - "electron-*"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-tools:
+        dependency-type: "development"
+        patterns:
+          - "eslint*"
+          - "prettier*"
+          - "tailwindcss*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
