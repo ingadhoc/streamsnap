@@ -9,12 +9,14 @@ window.KeyboardShortcutsManager = class KeyboardShortcutsManager {
     const startInput = document.getElementById('startShortcut')
     const pauseInput = document.getElementById('pauseShortcut')
     const stopInput = document.getElementById('stopShortcut')
+    const restartInput = document.getElementById('restartShortcut')
     const discardInput = document.getElementById('discardShortcut')
 
-    if (startInput && pauseInput && stopInput && discardInput) {
+    if (startInput && pauseInput && stopInput && restartInput && discardInput) {
       this.setupShortcutInput(startInput, 'startShortcut')
       this.setupShortcutInput(pauseInput, 'pauseShortcut')
       this.setupShortcutInput(stopInput, 'stopShortcut')
+      this.setupShortcutInput(restartInput, 'restartShortcut')
       this.setupShortcutInput(discardInput, 'discardShortcut')
       this.setupClearButtons()
       this.loadShortcuts()
@@ -149,7 +151,7 @@ window.KeyboardShortcutsManager = class KeyboardShortcutsManager {
   }
 
   setupClearButtons() {
-    ;['startShortcut', 'pauseShortcut', 'stopShortcut', 'discardShortcut'].forEach(settingKey => {
+    ;['startShortcut', 'pauseShortcut', 'stopShortcut', 'restartShortcut', 'discardShortcut'].forEach(settingKey => {
       const clearBtn = document.getElementById(`clear${settingKey.charAt(0).toUpperCase() + settingKey.slice(1)}`)
       if (clearBtn) {
         clearBtn.addEventListener('click', () => {
@@ -167,7 +169,7 @@ window.KeyboardShortcutsManager = class KeyboardShortcutsManager {
     if (this.screenRecorder && this.screenRecorder.settingsManager) {
       const settings = this.screenRecorder.settingsManager.settings
 
-      ;['startShortcut', 'pauseShortcut', 'stopShortcut', 'discardShortcut'].forEach(key => {
+      ;['startShortcut', 'pauseShortcut', 'stopShortcut', 'restartShortcut', 'discardShortcut'].forEach(key => {
         const input = document.getElementById(key)
         const value = settings[key] || ''
         if (input) {

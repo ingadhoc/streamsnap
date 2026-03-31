@@ -70,6 +70,8 @@ class ScreenRecorder {
         shortcuts.pause = this.settingsManager.settings.pauseShortcut
       if (this.settingsManager.settings.stopShortcut && this.settingsManager.settings.stopShortcut.trim())
         shortcuts.stop = this.settingsManager.settings.stopShortcut
+      if (this.settingsManager.settings.restartShortcut && this.settingsManager.settings.restartShortcut.trim())
+        shortcuts.restart = this.settingsManager.settings.restartShortcut
       if (this.settingsManager.settings.discardShortcut && this.settingsManager.settings.discardShortcut.trim())
         shortcuts.discard = this.settingsManager.settings.discardShortcut
       window.electronAPI.registerShortcuts(shortcuts)
@@ -269,6 +271,13 @@ class ScreenRecorder {
     window.electronAPI.onShortcutDiscard &&
       window.electronAPI.onShortcutDiscard(() => {
         this.discardRecording()
+      })
+
+    window.electronAPI.onShortcutRestart &&
+      window.electronAPI.onShortcutRestart(() => {
+        if (this.recordingState.isRecording) {
+          window.electronAPI.restartRecording()
+        }
       })
 
     if (window.electronAPI.onDriveUploadDone) {

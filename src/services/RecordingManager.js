@@ -322,6 +322,14 @@ class RecordingManager {
         })
       }
 
+      if (this.currentShortcuts.restart && this.currentShortcuts.restart.trim()) {
+        const restartRegistered = globalShortcut.register(this.currentShortcuts.restart, () => {
+          if (this.isRecording) {
+            this.emitShortcutEvent('restart')
+          }
+        })
+      }
+
       if (this.currentShortcuts.discard && this.currentShortcuts.discard.trim()) {
         const discardRegistered = globalShortcut.register(this.currentShortcuts.discard, () => {
           if (this.isRecording) {

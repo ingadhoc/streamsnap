@@ -4,6 +4,7 @@ class SettingsManager {
       startShortcut: '',
       pauseShortcut: '',
       stopShortcut: '',
+      restartShortcut: '',
       discardShortcut: '',
       recordMicrophone: false,
       recordSystemAudio: false,

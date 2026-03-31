@@ -4,6 +4,7 @@ let startTime = null
 let pausedTime = 0
 let lastPauseStart = null
 let timerInterval = null
+let isRestarting = false
 
 function updateTimer() {
   if (!startTime) return
@@ -69,18 +70,27 @@ function stopTimer() {
 function updateUI() {
   const pauseBtn = document.getElementById('pauseBtn')
   const resumeBtn = document.getElementById('resumeBtn')
+  const restartBtn = document.getElementById('restartBtn')
   const stopBtn = document.getElementById('stopBtn')
   const discardBtn = document.getElementById('discardBtn')
 
   if (pauseBtn) pauseBtn.style.display = isPaused ? 'none' : 'block'
   if (resumeBtn) resumeBtn.style.display = isPaused ? 'block' : 'none'
+  if (restartBtn) restartBtn.style.display = 'block'
   if (stopBtn) stopBtn.style.display = 'block'
   if (discardBtn) discardBtn.style.display = 'block'
+
+  if (pauseBtn) pauseBtn.disabled = isRestarting
+  if (resumeBtn) resumeBtn.disabled = isRestarting
+  if (restartBtn) restartBtn.disabled = isRestarting
+  if (stopBtn) stopBtn.disabled = isRestarting
+  if (discardBtn) discardBtn.disabled = isRestarting
 }
 
 function setupEventListeners() {
   const pauseBtn = document.getElementById('pauseBtn')
   const resumeBtn = document.getElementById('resumeBtn')
+  const restartBtn = document.getElementById('restartBtn')
   const stopBtn = document.getElementById('stopBtn')
   const discardBtn = document.getElementById('discardBtn')
 
@@ -93,6 +103,12 @@ function setupEventListeners() {
   if (resumeBtn) {
     resumeBtn.addEventListener('click', () => {
       resumeRecording()
+    })
+  }
+
+  if (restartBtn) {
+    restartBtn.addEventListener('click', () => {
+      restartRecording()
     })
   }
 
@@ -159,6 +175,19 @@ async function discardRecording() {
   try {
     const result = await window.electronAPI.discardRecording()
   } catch (error) {}
+}
+
+async function restartRecording() {
+  if (isRestarting) return
+
+  try {
+    isRestarting = true
+    updateUI()
+    await window.electronAPI.restartRecording()
+  } catch (error) {
+    isRestarting = false
+    updateUI()
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

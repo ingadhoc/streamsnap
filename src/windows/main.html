@@ -357,14 +357,14 @@
                     This shortcut works globally, even when the app is minimized
                   </p>
                 </div>
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Pause/Resume</label>
                     <div class="flex gap-2">
                       <input
                         type="text"
                         id="pauseShortcut"
-                        class="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-400 transition-colors"
+                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-400 transition-colors"
                         placeholder="Click to set shortcut..."
                         readonly
                       />
@@ -383,7 +383,7 @@
                       <input
                         type="text"
                         id="stopShortcut"
-                        class="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-400 transition-colors"
+                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-400 transition-colors"
                         placeholder="Click to set shortcut..."
                         readonly
                       />
@@ -397,12 +397,31 @@
                     </div>
                   </div>
                   <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Restart Recording</label>
+                    <div class="flex gap-2">
+                      <input
+                        type="text"
+                        id="restartShortcut"
+                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-400 transition-colors"
+                        placeholder="Click to set shortcut..."
+                        readonly
+                      />
+                      <button
+                        id="clearRestartShortcut"
+                        class="px-2 py-2 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Clear shortcut"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                  <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Discard Recording</label>
                     <div class="flex gap-2">
                       <input
                         type="text"
                         id="discardShortcut"
-                        class="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-400 transition-colors"
+                        class="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-400 transition-colors"
                         placeholder="Click to set shortcut..."
                         readonly
                       />

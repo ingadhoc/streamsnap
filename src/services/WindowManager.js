@@ -141,11 +141,11 @@ class WindowManager {
       const screenH = workArea.height || targetDisplay.size?.height || targetDisplay.bounds?.height || screen.getPrimaryDisplay().workAreaSize.height
 
       const hasWebcam = !!(settings && (settings.recordWebcam || settings.defaultRecordWebcam))
-      let winWidth = 240
-      let winHeight = 56
+      let winWidth = WINDOW_CONFIG.floating.baseWidth
+      let winHeight = WINDOW_CONFIG.floating.baseHeight
 
       if (hasWebcam) {
-        winWidth = 250
+        winWidth += 10
       }
 
       const leftMargin =

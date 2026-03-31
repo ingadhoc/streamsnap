@@ -17,8 +17,8 @@ const WINDOW_CONFIG = {
     resizable: true
   },
   floating: {
-    baseWidth: 240,
-    baseHeight: 70,
+    baseWidth: 300,
+    baseHeight: 64,
     margins: { left: 20, bottom: 40 }
   },
   countdown: {

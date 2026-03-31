@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startRecording: () => ipcRenderer.invoke('start-recording'),
   pauseRecording: () => ipcRenderer.invoke('pause-recording'),
   resumeRecording: () => ipcRenderer.invoke('resume-recording'),
+  restartRecording: () => ipcRenderer.invoke('restart-recording'),
   stopRecording: () => ipcRenderer.invoke('stop-recording'),
   discardRecording: () => ipcRenderer.invoke('discard-recording'),
 
@@ -209,6 +210,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onShortcutPause: callback => ipcRenderer.on('shortcut-pause', callback),
   onShortcutStop: callback => ipcRenderer.on('shortcut-stop', callback),
+  onShortcutRestart: callback => ipcRenderer.on('shortcut-restart', callback),
   onShortcutDiscard: callback => ipcRenderer.on('shortcut-discard', callback),
 
   onStartCountdown: callback => ipcRenderer.on('start-countdown', (event, duration) => callback(duration)),

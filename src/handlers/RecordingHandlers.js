@@ -68,6 +68,50 @@ class RecordingHandlers {
       }
     })
 
+    ipcMain.handle('restart-recording', async () => {
+      try {
+        const selectedSource = this.app.recordingManager.selectedSource
+
+        this.app.broadcastToWindows('discard-recording-event')
+        await new Promise(resolve => setTimeout(resolve, 50))
+
+        this.app.recordingManager.stopRecording()
+        this.app.recordingManager.clearRecordedVideoData()
+
+        await new Promise(resolve => setTimeout(resolve, 250))
+        this.app.windowManager.closeWindow('floating')
+        try {
+          this.app.windowManager.closeWindow('webcam')
+        } catch (e) {}
+
+        if (!selectedSource) {
+          this.app.windowManager.showMainWindow()
+          await this.app.windowManager.createSourceSelectorWindow()
+          return { success: true, mode: 'selector' }
+        }
+
+        const mainWindow = this.app.windowManager.getWindow('main')
+        if (!mainWindow || mainWindow.isDestroyed()) {
+          return { success: false, error: 'Main window is not available' }
+        }
+
+        this.app.windowManager.showMainWindow()
+        mainWindow.webContents.executeJavaScript(`
+          if (window.recorderAPI && window.recorderAPI.startWithSource) {
+            window.recorderAPI.startWithSource(${JSON.stringify(selectedSource)})
+          }
+        `)
+
+        setTimeout(() => {
+          this.app.windowManager.minimizeMainWindow()
+        }, 1000)
+
+        return { success: true, mode: 'same-source' }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
+
     ipcMain.handle('stop-recording', async () => {
       try {
         this.app.recordingManager.stopRecording()

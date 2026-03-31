@@ -92,6 +92,10 @@
         background: linear-gradient(135deg, #ef4444, #dc2626);
         box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
       }
+      .btn-restart {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      }
       .btn-discard {
         background: linear-gradient(135deg, #6b7280, #4b5563);
       }
@@ -142,6 +146,11 @@
         border-radius: 1px;
         margin: auto;
       }
+      .restart-icon {
+        font-size: 16px;
+        line-height: 1;
+        color: white;
+      }
       .x-icon {
         width: 14px;
         height: 14px;
@@ -177,6 +186,10 @@
 
       <button id="resumeBtn" class="btn btn-resume" title="Resume" style="display: none">
         <span class="play-text">▶</span>
+      </button>
+
+      <button id="restartBtn" class="btn btn-restart" title="Restart">
+        <span class="restart-icon">↺</span>
       </button>
 
       <button id="stopBtn" class="btn btn-stop" title="Stop">
