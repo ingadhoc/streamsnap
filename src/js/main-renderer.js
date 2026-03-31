@@ -4,6 +4,7 @@ class ScreenRecorder {
     this.settingsManager = new SettingsManager()
     this.uiManager = new UIManager()
     this.keyboardShortcuts = null
+    this.driveAutoSaveAccounts = []
     this.micStream = null
     this.micAnalyser = null
     this.micAnimationFrame = null
@@ -198,13 +199,146 @@ class ScreenRecorder {
     }
   }
 
-  setupDriveControls() {}
+  setupDriveControls() {
+    const manageDriveAccountsBtn = document.getElementById('manageDriveAccountsBtn')
+    const driveAutoSaveEnabledEl = document.getElementById('driveAutoSaveEnabled')
+
+    if (manageDriveAccountsBtn) {
+      manageDriveAccountsBtn.addEventListener('click', async () => {
+        try {
+          await window.electronAPI.driveAccountsOpen()
+          setTimeout(() => this.loadDriveAutoSaveAccounts(), 300)
+        } catch (e) {}
+      })
+    }
+
+    if (driveAutoSaveEnabledEl) {
+      driveAutoSaveEnabledEl.addEventListener('change', e => {
+        this.settingsManager.settings.driveAutoSaveEnabled = e.target.checked
+        this.settingsManager.saveSettings()
+        this.updateDriveAutoSaveAccountsState()
+      })
+    }
+
+    if (window.electronAPI && window.electronAPI.onDriveAccountsUpdated) {
+      window.electronAPI.onDriveAccountsUpdated(() => {
+        this.loadDriveAutoSaveAccounts()
+      })
+    }
+
+    if (window.electronAPI && window.electronAPI.onDriveAccountsChanged) {
+      window.electronAPI.onDriveAccountsChanged(() => {
+        this.loadDriveAutoSaveAccounts()
+      })
+    }
+
+    this.loadDriveAutoSaveAccounts()
+  }
 
   async updateDriveUI() {
     const driveStatus = document.getElementById('driveStatus')
     if (driveStatus) {
       driveStatus.textContent = 'Manage your Google Drive accounts for cloud storage'
     }
+  }
+
+  updateDriveAutoSaveAccountsState() {
+    const enabled = this.settingsManager.settings.driveAutoSaveEnabled === true
+    const container = document.getElementById('driveAutoSaveAccountsContainer')
+    const list = document.getElementById('driveAutoSaveAccountsList')
+
+    if (container) {
+      container.style.opacity = enabled ? '1' : '0.6'
+    }
+
+    if (list) {
+      list.querySelectorAll('input[type="checkbox"]').forEach(input => {
+        const canSelect = input.getAttribute('data-can-select') === 'true'
+        input.disabled = !enabled || !canSelect
+      })
+    }
+  }
+
+  async loadDriveAutoSaveAccounts() {
+    const list = document.getElementById('driveAutoSaveAccountsList')
+    if (!list) return
+
+    try {
+      const res = await window.electronAPI.driveAccountsGetActive()
+      const accounts = (res && res.accounts) || []
+      this.driveAutoSaveAccounts = Array.isArray(accounts) ? accounts : []
+
+      const activeIds = new Set(this.driveAutoSaveAccounts.map(account => account.id))
+      const savedIds = Array.isArray(this.settingsManager.settings.driveAutoSaveAccountIds)
+        ? this.settingsManager.settings.driveAutoSaveAccountIds
+        : []
+      const validIds = savedIds.filter(id => activeIds.has(id))
+
+      if (validIds.length !== savedIds.length) {
+        this.settingsManager.settings.driveAutoSaveAccountIds = validIds
+        this.settingsManager.saveSettings()
+      }
+
+      this.renderDriveAutoSaveAccounts()
+    } catch (error) {
+      list.innerHTML = '<p class="text-sm text-red-500">Failed to load Drive accounts</p>'
+      this.driveAutoSaveAccounts = []
+      this.updateDriveAutoSaveAccountsState()
+    }
+  }
+
+  renderDriveAutoSaveAccounts() {
+    const list = document.getElementById('driveAutoSaveAccountsList')
+    if (!list) return
+
+    if (!Array.isArray(this.driveAutoSaveAccounts) || this.driveAutoSaveAccounts.length === 0) {
+      list.innerHTML = '<p class="text-sm text-gray-500">No active Drive accounts. Use Manage Accounts first.</p>'
+      this.updateDriveAutoSaveAccountsState()
+      return
+    }
+
+    const selectedIds = new Set(this.settingsManager.settings.driveAutoSaveAccountIds || [])
+
+    list.innerHTML = this.driveAutoSaveAccounts
+      .map(account => {
+        const name = account.email || account.displayName || 'Drive account'
+        const hasFolder = !!account.defaultFolderId
+        const folderName = account.defaultFolderName || 'No default folder configured'
+        const checked = selectedIds.has(account.id)
+
+        return `
+          <label class="flex items-start gap-3 py-2 ${hasFolder ? '' : 'opacity-70'}">
+            <input
+              type="checkbox"
+              class="mt-1"
+              data-drive-auto-save-account-id="${account.id}"
+              data-can-select="${hasFolder ? 'true' : 'false'}"
+              ${checked ? 'checked' : ''}
+              ${hasFolder ? '' : 'disabled'}
+            />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-gray-800 truncate">${name}</p>
+              <p class="text-xs ${hasFolder ? 'text-gray-500' : 'text-amber-600'} truncate">Folder: ${folderName}</p>
+            </div>
+          </label>
+        `
+      })
+      .join('')
+
+    list.querySelectorAll('input[data-drive-auto-save-account-id]').forEach(input => {
+      input.addEventListener('change', event => {
+        const accountId = event.target.getAttribute('data-drive-auto-save-account-id')
+        const currentIds = new Set(this.settingsManager.settings.driveAutoSaveAccountIds || [])
+
+        if (event.target.checked) currentIds.add(accountId)
+        else currentIds.delete(accountId)
+
+        this.settingsManager.settings.driveAutoSaveAccountIds = Array.from(currentIds)
+        this.settingsManager.saveSettings()
+      })
+    })
+
+    this.updateDriveAutoSaveAccountsState()
   }
 
   async showCountdown() {
@@ -673,7 +807,16 @@ class ScreenRecorder {
       }
 
       this.uiManager.hideConversionProgress()
-      this.uiManager.updateRecordingStatus('Recording complete', 'complete')
+      if (result.autoSaved) {
+        this.uiManager.updateRecordingStatus(
+          `Auto-saved to Drive (${result.uploadedCount || 0} account${result.uploadedCount === 1 ? '' : 's'})`,
+          'complete'
+        )
+      } else if (result.autoSaveAttempted && result.autoSaveUploadedCount > 0) {
+        this.uiManager.updateRecordingStatus('Auto-save partially completed. Review save options.', 'complete')
+      } else {
+        this.uiManager.updateRecordingStatus('Recording complete', 'complete')
+      }
       this.uiManager.enableStartButton()
     } catch (error) {
       this.uiManager.hideConversionProgress()

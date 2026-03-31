@@ -17,6 +17,8 @@ class SettingsManager {
       driveFolderId: '',
       driveFolderName: '',
       driveVideoPrivacy: 'restricted',
+      driveAutoSaveEnabled: false,
+      driveAutoSaveAccountIds: [],
       drive: { accessToken: '', folderId: '', folderName: '', videoPrivacy: 'restricted' },
       enableCountdown: true,
       countdownDuration: 5,
@@ -38,6 +40,12 @@ class SettingsManager {
       folderName: '',
       videoPrivacy: 'restricted'
     }
+    if (!Array.isArray(this.settings.driveAutoSaveAccountIds)) {
+      this.settings.driveAutoSaveAccountIds = []
+    }
+    this.settings.driveAutoSaveAccountIds = this.settings.driveAutoSaveAccountIds.filter(
+      accountId => typeof accountId === 'string' && accountId.trim().length > 0
+    )
     if (!this.settings.drive.accessToken && this.settings.driveAccessToken)
       this.settings.drive.accessToken = this.settings.driveAccessToken
     if (!this.settings.drive.folderId && this.settings.driveFolderId)
@@ -73,6 +81,8 @@ class SettingsManager {
     document.getElementById('countdownDuration').value = this.settings.countdownDuration || 5
     const enableMp4ConversionEl = document.getElementById('enableMp4Conversion')
     if (enableMp4ConversionEl) enableMp4ConversionEl.checked = this.settings.enableMp4Conversion !== false
+    const driveAutoSaveEnabledEl = document.getElementById('driveAutoSaveEnabled')
+    if (driveAutoSaveEnabledEl) driveAutoSaveEnabledEl.checked = this.settings.driveAutoSaveEnabled === true
     this.updateCountdownOptionsVisibility()
   }
 

@@ -226,27 +226,7 @@ class RecordingHandlers {
             percent: 100,
             message: 'MP4 conversion disabled. Keeping WebM format.'
           })
-
-          this.app.recordingManager.setRecordedVideoPath(tempWebmPath)
-
-          if (duration != null) {
-            this.app.recordingManager.setRecordedVideoDuration(duration)
-          }
-
-          const hasDriveAccounts = DriveAccountManager.getActiveAccounts().length > 0
-          const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
-
-          this.app.windowManager.showMainWindow()
-          await this.app.windowManager.createSaveWindow({
-            showDriveOption: Boolean(hasDriveAccounts),
-            showYouTubeOption: Boolean(hasYouTubeAccounts),
-            showDriveSignIn: !this.app.driveService.isAuthenticated(),
-            showLocalOption: true,
-            tempVideoPath: tempWebmPath,
-            driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
-          })
-
-          return { success: true, tempPath: tempWebmPath, outputFormat: 'webm' }
+          return await this.handlePostTempSave({ tempPath: tempWebmPath, duration, outputFormat: 'webm' })
         }
 
         this.app.broadcastToWindows('recording-conversion-progress', {
@@ -292,26 +272,7 @@ class RecordingHandlers {
           await fs.unlink(tempWebmPath)
         } catch (e) {}
 
-        this.app.recordingManager.setRecordedVideoPath(tempMp4Path)
-
-        if (duration != null) {
-          this.app.recordingManager.setRecordedVideoDuration(duration)
-        }
-
-        const hasDriveAccounts = DriveAccountManager.getActiveAccounts().length > 0
-        const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
-
-        this.app.windowManager.showMainWindow()
-        await this.app.windowManager.createSaveWindow({
-          showDriveOption: Boolean(hasDriveAccounts),
-          showYouTubeOption: Boolean(hasYouTubeAccounts),
-          showDriveSignIn: !this.app.driveService.isAuthenticated(),
-          showLocalOption: true,
-          tempVideoPath: tempMp4Path,
-          driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
-        })
-
-        return { success: true, tempPath: tempMp4Path, outputFormat: 'mp4' }
+        return await this.handlePostTempSave({ tempPath: tempMp4Path, duration, outputFormat: 'mp4' })
       } catch (error) {
         this.app.broadcastToWindows('recording-conversion-progress', {
           stage: 'failed',
@@ -491,6 +452,119 @@ class RecordingHandlers {
       
       return { success: true }
     })
+  }
+
+  async handlePostTempSave({ tempPath, duration, outputFormat }) {
+    this.app.recordingManager.setRecordedVideoPath(tempPath)
+
+    if (duration != null) {
+      this.app.recordingManager.setRecordedVideoDuration(duration)
+    }
+
+    let settings = {}
+    try {
+      settings = await this.app.getSettings()
+    } catch (e) {}
+
+    const autoSaveResult = await this.tryAutoSaveToDrive(tempPath, outputFormat, settings)
+
+    if (autoSaveResult.autoSaved) {
+      return {
+        success: true,
+        outputFormat,
+        autoSaved: true,
+        uploadedCount: autoSaveResult.uploadedCount,
+        totalAccounts: autoSaveResult.totalAccounts
+      }
+    }
+
+    const hasDriveAccounts = DriveAccountManager.getActiveAccounts().length > 0
+    const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
+
+    this.app.windowManager.showMainWindow()
+    await this.app.windowManager.createSaveWindow({
+      showDriveOption: Boolean(hasDriveAccounts),
+      showYouTubeOption: Boolean(hasYouTubeAccounts),
+      showDriveSignIn: !this.app.driveService.isAuthenticated(),
+      showLocalOption: true,
+      tempVideoPath: tempPath,
+      driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
+    })
+
+    return {
+      success: true,
+      tempPath,
+      outputFormat,
+      autoSaved: false,
+      autoSaveAttempted: autoSaveResult.attempted,
+      autoSaveUploadedCount: autoSaveResult.uploadedCount,
+      autoSaveTotalAccounts: autoSaveResult.totalAccounts
+    }
+  }
+
+  createAutoSaveFileName(outputFormat = 'mp4') {
+    const now = new Date()
+    const pad = n => String(n).padStart(2, '0')
+    const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+    const extension = outputFormat === 'webm' ? 'webm' : 'mp4'
+    return `StreamSnap_${dateStr}.${extension}`
+  }
+
+  async tryAutoSaveToDrive(tempPath, outputFormat, settings = {}) {
+    const fs = require('fs').promises
+
+    const enabled = settings && settings.driveAutoSaveEnabled === true
+    const selectedIds = Array.isArray(settings?.driveAutoSaveAccountIds) ? settings.driveAutoSaveAccountIds : []
+
+    if (!enabled || selectedIds.length === 0) {
+      return { attempted: false, autoSaved: false, uploadedCount: 0, totalAccounts: 0 }
+    }
+
+    const activeAccounts = DriveAccountManager.getActiveAccounts()
+    const selectedAccounts = activeAccounts.filter(account => selectedIds.includes(account.id))
+    const targetAccounts = selectedAccounts.filter(account => account.defaultFolderId)
+
+    if (targetAccounts.length === 0) {
+      return { attempted: true, autoSaved: false, uploadedCount: 0, totalAccounts: 0 }
+    }
+
+    try {
+      const videoData = await fs.readFile(tempPath)
+      const fileName = this.createAutoSaveFileName(outputFormat)
+
+      let uploadedCount = 0
+
+      for (const account of targetAccounts) {
+        try {
+          await this.app.driveService.uploadVideo(
+            account.id,
+            account.defaultFolderId,
+            videoData,
+            fileName,
+            account.privacy || 'restricted'
+          )
+          uploadedCount += 1
+        } catch (error) {}
+      }
+
+      const allSucceeded = uploadedCount === targetAccounts.length
+      if (allSucceeded) {
+        try {
+          await fs.unlink(tempPath)
+        } catch (e) {}
+
+        this.app.recordingManager.clearRecordedVideoData()
+      }
+
+      return {
+        attempted: true,
+        autoSaved: allSucceeded,
+        uploadedCount,
+        totalAccounts: targetAccounts.length
+      }
+    } catch (error) {
+      return { attempted: true, autoSaved: false, uploadedCount: 0, totalAccounts: targetAccounts.length }
+    }
   }
 
   getTargetDisplay() {

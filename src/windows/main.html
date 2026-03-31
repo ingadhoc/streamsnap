@@ -500,6 +500,40 @@
                     can have its own settings and default folders.
                   </p>
                 </div>
+
+                <div class="border-t border-gray-200 pt-4 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <label class="text-sm font-medium text-gray-700">Auto-save on Stop</label>
+                      <p class="text-xs text-gray-500 mt-1">
+                        Automatically upload to selected Drive accounts when you stop recording
+                      </p>
+                    </div>
+                    <div class="relative">
+                      <input type="checkbox" id="driveAutoSaveEnabled" class="sr-only" />
+                      <label for="driveAutoSaveEnabled" class="flex items-center cursor-pointer">
+                        <div class="relative">
+                          <div class="toggle-bg w-10 h-6 bg-gray-300 rounded-full shadow-inner transition-colors"></div>
+                          <div
+                            class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"
+                          ></div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div id="driveAutoSaveAccountsContainer" class="space-y-2">
+                    <div
+                      id="driveAutoSaveAccountsList"
+                      class="rounded-lg border border-gray-200 bg-white p-3 max-h-52 overflow-y-auto"
+                    >
+                      <p class="text-sm text-gray-500">Loading accounts...</p>
+                    </div>
+                    <p class="text-xs text-gray-400">
+                      Each selected account uses its default Drive folder. Configure folders from Manage Accounts.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
