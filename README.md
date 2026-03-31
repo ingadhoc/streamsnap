@@ -1,6 +1,11 @@
 # StreamSnap
 
-Screen recording application built with Electron.
+Professional screen recording application built with Electron. Open-source alternative to Screencastify and Screenity.
+
+[![CodeQL](https://github.com/ingadhoc/streamsnap/actions/workflows/codeql.yml/badge.svg)](https://github.com/ingadhoc/streamsnap/actions/workflows/codeql.yml)
+[![Security Audit](https://github.com/ingadhoc/streamsnap/actions/workflows/security.yml/badge.svg)](https://github.com/ingadhoc/streamsnap/actions/workflows/security.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ingadhoc/streamsnap/badge)](https://securityscorecards.dev/viewer/?uri=github.com/ingadhoc/streamsnap)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Installation
 
@@ -68,3 +73,29 @@ To enable Google Drive integration, you'll need to:
 - `npm run build:css` - Build Tailwind CSS
 - `npm run format` - Format code with Prettier
 - `npm run format:check` - Check code formatting
+
+## Security
+
+Security scanning runs automatically on every push, pull request, and weekly:
+
+| Tool | What it checks |
+|---|---|
+| **CodeQL** | Static analysis — bugs, XSS, injection in JS |
+| **npm audit** | Known CVEs in dependencies (severity ≥ moderate) |
+| **Trivy** | CVEs in `node_modules` + hardcoded secrets in source |
+| **Dependency Review** | Blocks PRs that introduce vulnerable dependencies |
+| **OSSF Scorecard** | Overall security posture score (branch protection, code review, etc.) |
+
+Results are visible in the [Security tab](https://github.com/ingadhoc/streamsnap/security) of the repository.
+
+To report a vulnerability, please open a [GitHub Security Advisory](https://github.com/ingadhoc/streamsnap/security/advisories/new) instead of a public issue.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit your changes: `git commit -m 'feat: add your feature'`
+4. Push to the branch: `git push origin feature/your-feature`
+5. Open a Pull Request against `main`
+
+For detailed architecture and technical decisions, see [specifications.md](specifications.md).
