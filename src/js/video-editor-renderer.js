@@ -106,7 +106,8 @@ class VideoEditorHandler {
 
       this.videoBlob = videoBlob
       this.videoDuration = Number.isFinite(dataDuration) && dataDuration > 0 ? dataDuration : Number(options.duration) || 0
-      this.videoUrl = URL.createObjectURL(new Blob([videoBlob], { type: 'video/mp4' }))
+      const sourceMimeType = this.inferSourceMimeType(data)
+      this.videoUrl = URL.createObjectURL(new Blob([videoBlob], { type: sourceMimeType }))
       this.videoEl.src = this.videoUrl
 
       this.initializeRanges()
@@ -114,6 +115,130 @@ class VideoEditorHandler {
       this.showError('Failed to load the recorded video.')
       this.applyTrimBtn.disabled = true
     }
+  }
+
+  inferSourceMimeType(data) {
+    const tempPath = data && typeof data.tempVideoPath === 'string' ? data.tempVideoPath.toLowerCase() : ''
+    if (tempPath.endsWith('.webm')) return 'video/webm'
+    return 'video/mp4'
+  }
+
+  getPreferredTrimMimeType() {
+    const preferredTypes = [
+      'video/mp4;codecs=avc1.640028,mp4a.40.2',
+      'video/mp4;codecs=avc1.4D401F,mp4a.40.2',
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm'
+    ]
+
+    for (const type of preferredTypes) {
+      if (MediaRecorder.isTypeSupported(type)) return type
+    }
+
+    return ''
+  }
+
+  waitForVideoEvent(video, eventName) {
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        video.removeEventListener(eventName, onEvent)
+        video.removeEventListener('error', onError)
+      }
+
+      const onEvent = () => {
+        cleanup()
+        resolve()
+      }
+
+      const onError = () => {
+        cleanup()
+        reject(new Error(`Video event failed: ${eventName}`))
+      }
+
+      video.addEventListener(eventName, onEvent, { once: true })
+      video.addEventListener('error', onError, { once: true })
+    })
+  }
+
+  async createTrimmedBlob(startTime, endTime) {
+    const playbackVideo = document.createElement('video')
+    playbackVideo.src = this.videoUrl
+    playbackVideo.preload = 'auto'
+    playbackVideo.muted = true
+    playbackVideo.playsInline = true
+
+    await this.waitForVideoEvent(playbackVideo, 'loadedmetadata')
+    playbackVideo.currentTime = startTime
+    await this.waitForVideoEvent(playbackVideo, 'seeked')
+
+    const captureStream =
+      (typeof playbackVideo.captureStream === 'function' && playbackVideo.captureStream()) ||
+      (typeof playbackVideo.mozCaptureStream === 'function' && playbackVideo.mozCaptureStream())
+
+    if (!captureStream) {
+      throw new Error('Trim capture is not supported on this device')
+    }
+
+    const selectedMimeType = this.getPreferredTrimMimeType()
+    const recorderOptions = selectedMimeType ? { mimeType: selectedMimeType } : undefined
+    const recorder = new MediaRecorder(captureStream, recorderOptions)
+    const chunks = []
+
+    let stopRequested = false
+    const requestStop = () => {
+      if (stopRequested) return
+      stopRequested = true
+      try {
+        playbackVideo.pause()
+      } catch (e) {}
+      try {
+        if (recorder.state !== 'inactive') recorder.stop()
+      } catch (e) {}
+    }
+
+    recorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) {
+        chunks.push(e.data)
+      }
+    }
+
+    const stopPromise = new Promise((resolve, reject) => {
+      recorder.onerror = event => {
+        reject(new Error(event?.error?.message || 'Trim recorder failed'))
+      }
+      recorder.onstop = () => {
+        resolve()
+      }
+    })
+
+    const handleTimeUpdate = () => {
+      if (playbackVideo.currentTime >= endTime - 0.03) {
+        requestStop()
+      }
+    }
+
+    playbackVideo.addEventListener('timeupdate', handleTimeUpdate)
+
+    try {
+      recorder.start(200)
+      await playbackVideo.play()
+      await stopPromise
+    } finally {
+      playbackVideo.removeEventListener('timeupdate', handleTimeUpdate)
+      captureStream.getTracks().forEach(track => track.stop())
+    }
+
+    const outputMimeType = recorder.mimeType || selectedMimeType || 'video/webm'
+    const trimmedBlob = new Blob(chunks, { type: outputMimeType })
+
+    if (!trimmedBlob || trimmedBlob.size === 0) {
+      throw new Error('Trim produced an empty video')
+    }
+
+    return { trimmedBlob, mimeType: outputMimeType }
   }
 
   initializeRanges() {
@@ -251,7 +376,12 @@ class VideoEditorHandler {
       this.applyTrimBtn.disabled = true
       this.applyTrimBtn.textContent = 'Applying...'
 
-      const result = await window.electronAPI.trimRecordedVideo({ startTime, endTime })
+      const { trimmedBlob, mimeType } = await this.createTrimmedBlob(startTime, endTime)
+      const arrayBuffer = await trimmedBlob.arrayBuffer()
+      const uint8Array = new Uint8Array(arrayBuffer)
+      const duration = Math.max(0, endTime - startTime)
+
+      const result = await window.electronAPI.setTrimmedVideo(uint8Array, duration, { mimeType })
 
       if (!result || !result.success) {
         throw new Error(result?.error || 'Unable to trim video')

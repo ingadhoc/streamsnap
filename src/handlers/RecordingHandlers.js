@@ -1,5 +1,4 @@
 const { ipcMain, screen } = require('electron')
-const VideoConversionService = require('../services/VideoConversionService')
 const DriveAccountManager = require('../services/DriveAccountManager')
 const YouTubeAccountManager = require('../services/YouTubeAccountManager')
 
@@ -7,7 +6,6 @@ class RecordingHandlers {
   constructor(app) {
     this.app = app
     this.registeredStartShortcut = null
-    this.isSaveConversionInProgress = false
     this.setupHandlers()
   }
 
@@ -187,100 +185,22 @@ class RecordingHandlers {
       const fs = require('fs').promises
       const path = require('path')
       const os = require('os')
-      const conversionEnabled = options.convertToMp4 !== false
-      const parseTimemarkToSeconds = timemark => {
-        if (!timemark || typeof timemark !== 'string') return null
-
-        const parts = timemark.split(':')
-        if (parts.length !== 3) return null
-
-        const hours = Number(parts[0])
-        const minutes = Number(parts[1])
-        const seconds = Number(parts[2])
-
-        if ([hours, minutes, seconds].some(n => Number.isNaN(n))) return null
-
-        return hours * 3600 + minutes * 60 + seconds
-      }
 
       try {
-        if (this.isSaveConversionInProgress) {
-          return { success: false, error: 'Conversion already in progress. Please wait for it to finish.' }
-        }
-
-        this.isSaveConversionInProgress = true
-
         const tempDir = path.join(os.tmpdir(), 'streamsnap-recordings')
         await fs.mkdir(tempDir, { recursive: true })
 
         const timestamp = Date.now()
-        const tempWebmPath = path.join(tempDir, `recording-${timestamp}.webm`)
-        const tempMp4Path = path.join(tempDir, `recording-${timestamp}.mp4`)
+        const mimeType = typeof options.mimeType === 'string' ? options.mimeType : ''
+        const outputFormat = mimeType.includes('mp4') ? 'mp4' : 'webm'
+        const tempPath = path.join(tempDir, `recording-${timestamp}.${outputFormat}`)
 
         const buffer = Buffer.from(videoBuffer)
-        await fs.writeFile(tempWebmPath, buffer)
+        await fs.writeFile(tempPath, buffer)
 
-        if (!conversionEnabled) {
-          this.app.broadcastToWindows('recording-conversion-progress', {
-            stage: 'completed',
-            percent: 100,
-            message: 'MP4 conversion disabled. Keeping WebM format.'
-          })
-          return await this.handlePostTempSave({ tempPath: tempWebmPath, duration, outputFormat: 'webm' })
-        }
-
-        this.app.broadcastToWindows('recording-conversion-progress', {
-          stage: 'started',
-          percent: 0,
-          message: 'Converting to MP4...'
-        })
-
-        await VideoConversionService.convertWebmToMp4(tempWebmPath, tempMp4Path, progress => {
-          const timemark = typeof progress?.timemark === 'string' ? progress.timemark : null
-          const rawPercent = typeof progress?.percent === 'number' ? progress.percent : null
-          const durationSeconds = typeof duration === 'number' && duration > 0 ? duration : null
-          const timemarkSeconds = parseTimemarkToSeconds(timemark)
-
-          let percent = null
-          if (rawPercent != null) {
-            percent = Math.max(0, Math.min(100, Math.round(rawPercent)))
-          } else if (durationSeconds != null && timemarkSeconds != null) {
-            const estimated = Math.round((timemarkSeconds / durationSeconds) * 100)
-            percent = Math.max(0, Math.min(99, estimated))
-          }
-
-          const fallbackMessage = timemark
-            ? `Converting to MP4... (${timemark})`
-            : 'Converting to MP4...'
-
-          this.app.broadcastToWindows('recording-conversion-progress', {
-            stage: 'progress',
-            percent,
-            message: percent == null ? fallbackMessage : `Converting to MP4... ${percent}%`
-          })
-        }, {
-          timeoutMs: 20 * 60 * 1000
-        })
-
-        this.app.broadcastToWindows('recording-conversion-progress', {
-          stage: 'completed',
-          percent: 100,
-          message: 'MP4 conversion completed'
-        })
-
-        try {
-          await fs.unlink(tempWebmPath)
-        } catch (e) {}
-
-        return await this.handlePostTempSave({ tempPath: tempMp4Path, duration, outputFormat: 'mp4' })
+        return await this.handlePostTempSave({ tempPath, duration, outputFormat })
       } catch (error) {
-        this.app.broadcastToWindows('recording-conversion-progress', {
-          stage: 'failed',
-          message: error.message || 'Error during MP4 conversion'
-        })
         return { success: false, error: error.message }
-      } finally {
-        this.isSaveConversionInProgress = false
       }
     })
 
@@ -322,61 +242,55 @@ class RecordingHandlers {
     })
 
     ipcMain.handle('trim-recorded-video', async (event, options = {}) => {
+      try {
+        return {
+          success: false,
+          error: 'Video trimming is temporarily unavailable in the current build.'
+        }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
+
+    ipcMain.handle('set-trimmed-video', async (event, videoBuffer, duration, options = {}) => {
       const fs = require('fs').promises
       const path = require('path')
       const os = require('os')
 
       try {
-        const startTime = Number(options.startTime)
-        const endTime = Number(options.endTime)
-
-        if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
-          return { success: false, error: 'Invalid trim range' }
+        if (!videoBuffer || !videoBuffer.length) {
+          return { success: false, error: 'No trimmed video data received' }
         }
 
-        let sourcePath = this.app.recordingManager.getRecordedVideoPath()
-        const inMemoryVideo = this.app.recordingManager.getRecordedVideoData()
+        const tempDir = path.join(os.tmpdir(), 'streamsnap-recordings')
+        await fs.mkdir(tempDir, { recursive: true })
 
-        if (!sourcePath) {
-          if (!inMemoryVideo) {
-            return { success: false, error: 'No recorded video available' }
-          }
+        const timestamp = Date.now()
+        const mimeType = typeof options.mimeType === 'string' ? options.mimeType : ''
+        const outputFormat = mimeType.includes('mp4') ? 'mp4' : 'webm'
+        const tempPath = path.join(tempDir, `recording-${timestamp}-trimmed.${outputFormat}`)
 
-          const tempDir = path.join(os.tmpdir(), 'streamsnap-recordings')
-          await fs.mkdir(tempDir, { recursive: true })
-          sourcePath = path.join(tempDir, `recording-${Date.now()}-source.mp4`)
-          await fs.writeFile(sourcePath, Buffer.from(inMemoryVideo))
-          this.app.recordingManager.setRecordedVideoPath(sourcePath)
-        }
+        const buffer = Buffer.from(videoBuffer)
+        await fs.writeFile(tempPath, buffer)
 
-        const sourceDir = path.dirname(sourcePath)
-        const outputPath = path.join(sourceDir, `recording-${Date.now()}-trimmed.mp4`)
-
-        await VideoConversionService.trimVideo(sourcePath, outputPath, startTime, endTime)
-
-        try {
-          if (sourcePath !== outputPath) {
-            await fs.unlink(sourcePath)
-          }
-        } catch (e) {}
-
-        const newDuration = Math.max(0, Math.floor(endTime - startTime))
         this.app.recordingManager.setRecordedVideoData(null)
-        this.app.recordingManager.setRecordedVideoPath(outputPath)
-        this.app.recordingManager.setRecordedVideoDuration(newDuration)
+        this.app.recordingManager.setRecordedVideoPath(tempPath)
+        if (duration != null) {
+          this.app.recordingManager.setRecordedVideoDuration(duration)
+        }
 
         const saveWindow = this.app.windowManager.getWindow('save')
         if (saveWindow && !saveWindow.isDestroyed()) {
           try {
             saveWindow.webContents.send('video-trimmed', {
               success: true,
-              duration: newDuration,
-              tempVideoPath: outputPath
+              duration,
+              tempVideoPath: tempPath
             })
           } catch (e) {}
         }
 
-        return { success: true, tempVideoPath: outputPath, duration: newDuration }
+        return { success: true, tempVideoPath: tempPath, duration, outputFormat }
       } catch (error) {
         return { success: false, error: error.message }
       }

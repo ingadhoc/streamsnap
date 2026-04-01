@@ -116,6 +116,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openVideoEditor: () => ipcRenderer.invoke('open-video-editor'),
   closeVideoEditor: () => ipcRenderer.invoke('close-video-editor'),
   trimRecordedVideo: options => ipcRenderer.invoke('trim-recorded-video', options),
+  setTrimmedVideo: (blob, duration, options) =>
+    ipcRenderer.invoke('set-trimmed-video', blob, duration, options),
 
   getVideoEditorOptions: () => {
     try {
@@ -187,14 +189,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onYouTubeAccountsUpdated: callback => {
     ipcRenderer.on('youtube-accounts-updated', (event, data) => {
-      try {
-        callback(data)
-      } catch (e) {}
-    })
-  },
-
-  onRecordingConversionProgress: callback => {
-    ipcRenderer.on('recording-conversion-progress', (event, data) => {
       try {
         callback(data)
       } catch (e) {}

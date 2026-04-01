@@ -23,24 +23,6 @@ class ScreenRecorder {
       })
     }
 
-    if (window.electronAPI && window.electronAPI.onRecordingConversionProgress) {
-      window.electronAPI.onRecordingConversionProgress(data => {
-        if (!data || !data.stage) return
-
-        if (data.stage === 'started' || data.stage === 'progress') {
-          this.uiManager.showConversionProgress(data.percent)
-          this.uiManager.updateRecordingStatus(data.message || 'Converting to MP4...', 'recording')
-          this.uiManager.disableStartButton()
-        } else if (data.stage === 'completed') {
-          this.uiManager.showConversionProgress(100)
-          this.uiManager.updateRecordingStatus(data.message || 'Conversion completed', 'recording')
-        } else if (data.stage === 'failed') {
-          this.uiManager.hideConversionProgress()
-          this.uiManager.updateRecordingStatus(data.message || 'Error converting to MP4', 'ready')
-          this.uiManager.enableStartButton()
-        }
-      })
-    }
   }
 
   handleDriveAuthUpdate(data) {
@@ -658,15 +640,28 @@ class ScreenRecorder {
 
   setupMediaRecorder(stream) {
     let options = { videoBitsPerSecond: 2500000 }
-    
-    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
-      options.mimeType = 'video/webm;codecs=vp9,opus'
-    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
-      options.mimeType = 'video/webm;codecs=vp8,opus'
-    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264')) {
-      options.mimeType = 'video/webm;codecs=h264'
-    } else if (MediaRecorder.isTypeSupported('video/webm')) {
-      options.mimeType = 'video/webm'
+    const preferMp4 = this.settingsManager.settings.enableMp4Conversion !== false
+
+    const mp4Types = [
+      'video/mp4;codecs=avc1.640028,mp4a.40.2',
+      'video/mp4;codecs=avc1.4D401F,mp4a.40.2',
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4;codecs=h264,aac',
+      'video/mp4'
+    ]
+    const webmTypes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=h264',
+      'video/webm'
+    ]
+    const preferredMimeTypes = preferMp4
+      ? [...mp4Types, ...webmTypes]
+      : [...webmTypes, ...mp4Types]
+
+    const supportedType = preferredMimeTypes.find(type => MediaRecorder.isTypeSupported(type))
+    if (supportedType) {
+      options.mimeType = supportedType
     }
 
     this.recordingState.mediaRecorder = new MediaRecorder(stream, options)
@@ -780,7 +775,7 @@ class ScreenRecorder {
       const mimeType = this.recordingState.mediaRecorder ? this.recordingState.mediaRecorder.mimeType : 'video/webm'
       const blob = new Blob(this.recordingState.recordedChunks, { type: mimeType })
 
-      this.uiManager.updateRecordingStatus('Converting to MP4...', 'recording')
+      this.uiManager.updateRecordingStatus('Processing recording...', 'recording')
       this.uiManager.disableStartButton()
 
       const computedDurationSeconds = this.recordingState.getDuration()
@@ -798,9 +793,7 @@ class ScreenRecorder {
       const arrayBuffer = await blob.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
 
-      const result = await window.electronAPI.saveRecordedVideoToTemp(uint8Array, includedDuration, {
-        convertToMp4: this.settingsManager.settings.enableMp4Conversion !== false
-      })
+      const result = await window.electronAPI.saveRecordedVideoToTemp(uint8Array, includedDuration, { mimeType })
 
       if (!result || !result.success) {
         throw new Error(result?.error || 'Failed to save recording')

@@ -69,7 +69,11 @@ class SaveVideoHandler {
     }
 
     if (window.electronAPI && window.electronAPI.onVideoTrimmed) {
-      window.electronAPI.onVideoTrimmed(async () => {
+      window.electronAPI.onVideoTrimmed(async data => {
+        if (data && typeof data.tempVideoPath === 'string') {
+          this.saveOptions = this.saveOptions || {}
+          this.saveOptions.tempVideoPath = data.tempVideoPath
+        }
         this.videoBlob = null
         await this.loadVideoData()
         this.showSuccess('Video trimmed successfully')

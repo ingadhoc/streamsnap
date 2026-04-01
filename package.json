@@ -65,9 +65,7 @@
     "npm": ">=8.0.0"
   },
   "dependencies": {
-    "@ffmpeg-installer/ffmpeg": "^1.1.0",
-    "dotenv": "^16.4.5",
-    "fluent-ffmpeg": "^2.1.3"
+    "dotenv": "^16.4.5"
   },
   "optionalDependencies": {
     "keytar": "^7.9.0"
@@ -99,9 +97,7 @@
       "!**/.DS_Store",
       "!**/*.{md,markdown}",
       "!**/{test,tests,__tests__,example,examples,coverage,doc,docs}/**/*",
-      "!node_modules/fluent-ffmpeg/coverage{,/**}",
-      "!node_modules/fluent-ffmpeg/doc{,/**}",
-      "!node_modules/fluent-ffmpeg/OLD{,/**}"
+      "!node_modules/**/coverage{,/**}"
     ],
     "electronLanguages": [
       "en",
