@@ -106,21 +106,6 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Using tag: ${TAG}"
 
-      - name: Build Linux artifacts
-        run: npm run build:linux
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-artifacts
-          if-no-files-found: error
-          path: |
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.rpm
-            dist/*.blockmap
-            dist/latest-linux.yml
-
       - name: Create next available tag on remote
         id: ensure_tag
         env:
@@ -173,6 +158,32 @@ jobs:
           echo "Failed to allocate a unique release tag after 20 attempts."
           exit 1
 
+      - name: Sync package version to release tag (Linux)
+        env:
+          TAG: ${{ steps.ensure_tag.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${TAG#v}"
+          npm pkg set version="${VERSION}"
+          echo "Building Linux artifacts with package version ${VERSION}"
+
+      - name: Build Linux artifacts
+        run: npm run build:linux
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          if-no-files-found: error
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+            dist/*.blockmap
+            dist/latest-linux.yml
+
       - name: Resolve release name
         id: naming
         env:
@@ -221,6 +232,15 @@ jobs:
           "GOOGLE_CLIENT_SECRET=$env:GOOGLE_CLIENT_SECRET" | Add-Content -Path .env
 
           Write-Host "Created .env for packaged build."
+
+      - name: Sync package version to release tag (Windows)
+        env:
+          TAG: ${{ needs.build-linux.outputs.release_tag }}
+        shell: pwsh
+        run: |
+          $version = $env:TAG -replace '^v', ''
+          npm pkg set version=$version
+          Write-Host "Building Windows artifacts with package version $version"
 
       - name: Build Windows artifacts
         run: npm run build:win
