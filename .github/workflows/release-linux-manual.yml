@@ -83,7 +83,7 @@ jobs:
           MINOR="${BASH_REMATCH[2]}"
           PATCH="${BASH_REMATCH[3]}"
 
-          PATTERN="^v${MAJOR}\\.${MINOR}\\.([0-9]+)$"
+          PATTERN="^v${MAJOR}\.${MINOR}\.([0-9]+)$"
           MAX_PATCH=""
 
           while IFS= read -r ref; do
@@ -255,10 +255,50 @@ jobs:
             dist/*.blockmap
             dist/latest.yml
 
+  publish-to-apt:
+    needs: build-linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-artifacts
+          path: linux-artifacts
+
+      - name: Checkout APT repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.APT_REPOSITORY || 'adhoc-dev/devops-apt-repository' }}
+          token: ${{ secrets.PAT_TOKEN }}
+          path: apt-repo
+
+      - name: Copy .deb to pool and push
+        env:
+          TAG: ${{ needs.build-linux.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          DEB_FILE=$(ls linux-artifacts/*.deb | head -1)
+          if [ -z "${DEB_FILE}" ]; then
+            echo "No .deb file found in linux-artifacts/"
+            exit 1
+          fi
+
+          cp -f "${DEB_FILE}" apt-repo/pool/
+
+          cd apt-repo
+          git config user.email "devops@adhoc.inc"
+          git config user.name "DevOps Team"
+          git add ./pool/
+          git commit -m "streamsnap ${TAG} release"
+          git push origin main
+
   create-release:
     needs:
       - build-linux
       - build-windows
+      - publish-to-apt
     runs-on: ubuntu-latest
 
     steps:
