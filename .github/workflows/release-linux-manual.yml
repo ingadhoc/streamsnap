@@ -261,7 +261,7 @@ jobs:
 
     steps:
       - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-artifacts
           path: linux-artifacts
@@ -303,13 +303,13 @@ jobs:
 
     steps:
       - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-artifacts
           path: release-artifacts/linux
 
       - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-artifacts
           path: release-artifacts/windows
