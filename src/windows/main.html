@@ -6,11 +6,14 @@
     <title>StreamSnap - Screen Recorder</title>
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;"
+      content="default-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://yt3.ggpht.com; media-src 'self' blob:;"
     />
     <link rel="stylesheet" href="../styles.css" />
     <link rel="stylesheet" href="../css/countdown.css" />
     <link rel="stylesheet" href="../css/main.css" />
+    <link rel="stylesheet" href="../css/save-video.css" />
+    <link rel="stylesheet" href="../css/upload-success-modal.css" />
+    <link rel="stylesheet" href="../css/folder-picker-modal.css" />
   </head>
   <body class="bg-gradient-to-br from-slate-100 to-blue-100 min-h-screen flex items-start justify-center font-sans overflow-hidden">
     <div class="max-w-2xl w-full mx-auto px-6 pt-6 pb-0">
@@ -582,5 +585,288 @@
     <script src="../js/drive-accounts.js"></script>
     <script src="../js/youtube-accounts.js"></script>
     <script src="../js/main-renderer.js"></script>
+
+    <!-- Save Panel Modal Overlay -->
+    <div id="savePanelOverlay" class="hidden fixed inset-0 z-50 bg-black/60 overflow-y-auto" style="padding: 1rem;">
+      <div id="mainContent" class="bg-white rounded-xl shadow-lg max-w-2xl mx-auto my-4" style="position:relative;">
+        <button id="savePanelCloseBtn" class="absolute top-3 right-3 text-gray-400 hover:text-gray-700 text-xl font-bold leading-none z-10" title="Close">&times;</button>
+        <div class="p-6">
+          <div class="text-center mb-5">
+            <div
+              class="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full inline-flex items-center justify-center mb-3 text-xl shadow-lg shadow-green-500/30 animate-bounce-once"
+            >
+              ✅
+            </div>
+            <h2 class="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+              Recording Complete!
+            </h2>
+            <p class="text-gray-600 text-sm">Choose how to save your screen recording</p>
+          </div>
+
+          <div class="bg-gray-50 rounded-lg p-3 mb-5">
+            <video id="previewVideo" controls muted class="w-full rounded-md bg-black max-h-64 object-contain cursor-pointer hover:max-h-96 transition-all"></video>
+            <div class="flex justify-between mt-2 text-xs text-gray-500">
+              <span id="videoDuration">Duration: --:--</span>
+              <span id="videoSize">Size: -- MB</span>
+            </div>
+            <div class="mt-3 flex justify-end">
+              <button
+                id="editVideoBtn"
+                class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition-all hover:shadow-md active:scale-95"
+              >
+                ✂️ Edit Video
+              </button>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="block font-semibold mb-2 text-gray-700 text-sm">📝 File Name</label>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                id="fileName"
+                placeholder="Enter file name"
+                class="w-full px-3 py-2.5 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200/50 transition-all"
+              />
+            </div>
+          </div>
+
+          <!-- Save Options -->
+          <div class="space-y-3 mb-5">
+            <!-- Google Drive Accounts Section -->
+            <div
+              id="driveAccountsSection"
+              class="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 hidden"
+            >
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-7 h-7 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center"
+                  >
+                    <span class="text-white text-sm">☁️</span>
+                  </div>
+                  <div>
+                    <h3 class="font-medium text-gray-800 text-sm">Google Drive Accounts</h3>
+                    <p class="text-xs text-gray-600">Save to individual accounts</p>
+                  </div>
+                </div>
+                <button
+                  id="addMoreAccountsBtn"
+                  class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-all hover:scale-105"
+                >
+                  <span class="mr-1">+</span> Add Account
+                </button>
+              </div>
+
+              <div class="space-y-2">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Available accounts:</label>
+                <div
+                  id="driveAccountsList"
+                  class="space-y-2 bg-white/70 backdrop-blur-sm rounded-md p-3 border border-green-200"
+                >
+                  <!-- Accounts will be populated here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- No Drive Accounts prompt -->
+            <div id="noDriveAccountsSection" class="mb-4 hidden">
+              <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div>
+                  <h3 class="font-medium text-gray-800 text-sm">Google Drive</h3>
+                  <p class="text-xs text-gray-600">Add Drive accounts to save recordings to the cloud.</p>
+                </div>
+                <button
+                  id="savePanelManageDriveBtn"
+            <div
+              id="youtubeAccountsSection"
+              class="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 hidden"
+            >
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-7 h-7 bg-gradient-to-r from-red-500 to-pink-600 rounded-full flex items-center justify-center"
+                  >
+                    <span class="text-white text-sm">▶️</span>
+                  </div>
+                  <div>
+                    <h3 class="font-medium text-gray-800 text-sm">YouTube Accounts</h3>
+                    <p class="text-xs text-gray-600">Upload to YouTube channels</p>
+                  </div>
+                </div>
+                <button
+                  id="addMoreYouTubeAccountsBtn"
+                  class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-medium transition-all hover:scale-105"
+                >
+                  <span class="mr-1">+</span> Add Account
+                </button>
+              </div>
+
+              <div class="space-y-2">
+                <label class="block text-xs font-medium text-gray-700 mb-1">Available accounts:</label>
+                <div
+                  id="youtubeAccountsList"
+                  class="space-y-2 bg-white/70 backdrop-blur-sm rounded-md p-3 border border-red-200"
+                ></div>
+              </div>
+            </div>
+
+            <!-- No YouTube Accounts prompt -->
+            <div id="noYouTubeAccountsSection" class="mb-4 hidden">
+              <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg p-3">
+                <div>
+                  <h3 class="font-medium text-gray-800 text-sm">YouTube</h3>
+                  <p class="text-xs text-gray-600">Add YouTube accounts to upload recordings directly.</p>
+                </div>
+                <button
+                  id="savePanelManageYouTubeBtn"
+                  class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md text-xs font-medium"
+                >
+                  Manage Accounts
+                </button>
+              </div>
+            </div>
+
+            <!-- Local Save Option -->
+            <div id="localSaveSection" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">💾</span>
+                  <h3 class="font-medium text-gray-800 text-sm">Save to Computer</h3>
+                </div>
+                <button
+                  id="localSaveBtn"
+                  class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition-all text-sm shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
+                >
+                  💾 Save Local
+                </button>
+              </div>
+              <div class="mb-2">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Save to folder:</label>
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    id="localFolderPath"
+                    readonly
+                    class="flex-1 px-2 py-1.5 border border-gray-300 rounded-md bg-gray-50 text-xs text-gray-600"
+                    placeholder="Select folder..."
+                  />
+                  <button
+                    id="browseLocalBtn"
+                    class="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-semibold transition-all hover:shadow-md active:scale-95"
+                  >
+                    📁 Browse
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 justify-end">
+            <button
+              id="discardBtn"
+              class="px-4 py-2 bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-600 rounded-lg border-2 border-gray-300 hover:border-red-300 transition-all text-sm font-semibold hover:shadow-md active:scale-95"
+              title="Discard recording"
+            >
+              🗑️ Discard
+            </button>
+          </div>
+
+          <div id="savingState" class="hidden text-center py-4 text-gray-500">
+            <div
+              class="inline-block w-4 h-4 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin mr-2"
+            ></div>
+            <span id="savingText" class="text-sm">Saving your recording...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Source Selector Modal Overlay -->
+    <div id="sourceSelectorOverlay" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overflow-y-auto">
+      <style>
+        .animate-fade-in { animation: ssFadeIn 0.3s ease-in-out; }
+        @keyframes ssFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .ss-real-time-indicator { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: ssPulse 2s infinite; }
+        @keyframes ssPulse { 0% { opacity:1; transform:scale(1); } 50% { opacity:.5; transform:scale(1.2); } 100% { opacity:1; transform:scale(1); } }
+      </style>
+      <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] flex flex-col">
+        <!-- Header -->
+        <div class="p-6 border-b border-gray-200 relative">
+          <div class="ss-real-time-indicator" title="Real-time detection active"></div>
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-2xl font-bold text-gray-800 mb-2">Choose What to Record</h2>
+              <p class="text-gray-600">Select a window or screen to start recording</p>
+            </div>
+            <button id="closeBtn" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors">
+              <span class="text-gray-500">✕</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex border-b border-gray-200">
+          <button id="screenTab" class="flex-1 py-4 px-6 text-center font-semibold border-b-2 border-blue-500 text-blue-600 bg-blue-50 relative">
+            <span class="mr-2">🖥️</span>Screens
+          </button>
+          <button id="windowTab" class="flex-1 py-4 px-6 text-center font-semibold border-b-2 border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50 transition-all relative">
+            <span class="mr-2">🪟</span>Windows
+          </button>
+        </div>
+
+        <!-- Info Banner for Windows Tab -->
+        <div id="windowInfoBanner" class="hidden bg-amber-50 border-l-4 border-amber-400 p-4">
+          <div class="flex">
+            <div class="flex-shrink-0"><span class="text-amber-400 text-lg">💡</span></div>
+            <div class="ml-3">
+              <p class="text-sm text-amber-800"><strong>Live detection:</strong> Windows will appear automatically when opened. Only visible (non-minimized) windows are shown.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-hidden">
+          <div id="screenContent" class="h-full p-6 overflow-hidden">
+            <div id="screenSources" class="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto max-h-[250px] pb-6 pr-2"></div>
+            <div id="noScreens" class="hidden text-center py-12">
+              <div class="text-gray-400 text-6xl mb-4">🖥️</div>
+              <p class="text-gray-500 text-lg">No screens available to record</p>
+            </div>
+          </div>
+          <div id="windowContent" class="h-full p-6 overflow-hidden hidden">
+            <div id="windowSources" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto max-h-[250px] pb-6 pr-2"></div>
+            <div id="noWindows" class="hidden text-center py-12">
+              <div class="text-gray-400 text-6xl mb-4">🪟</div>
+              <p class="text-gray-500 text-lg mb-2">No windows available to record</p>
+              <p class="text-gray-400 text-sm mb-3">Open an application and it will appear here automatically</p>
+              <div class="bg-gray-50 rounded-lg p-4 max-w-md mx-auto">
+                <p class="text-xs text-gray-500 text-left"><strong>Live Detection Active 🟢</strong><br/>1. Open any application (Chrome, Safari, etc.)<br/>2. Make sure it's visible (not minimized)<br/>3. It will appear here automatically</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-6 border-t border-gray-200 flex justify-between items-center">
+          <button id="cancelBtn" class="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold transition-colors">Cancel</button>
+          <div class="flex items-center space-x-4">
+            <div id="selectedInfo" class="hidden text-sm text-gray-600">
+              <span id="selectedName">No source selected</span>
+            </div>
+            <button id="ssSelectorStartBtn" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed" disabled>
+              Start Recording
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>window.__isMainWindow = true;</script>
+    <script src="../js/source-selector.js"></script>
+    <script src="../js/video-fullscreen.js"></script>
+    <script src="../js/folder-picker-modal.js"></script>
+    <script src="../js/upload-success-modal.js"></script>
+    <script src="../js/save-renderer.js"></script>
   </body>
 </html>

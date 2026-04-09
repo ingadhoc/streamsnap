@@ -237,157 +237,29 @@ class WindowManager {
         throw new Error('Main window must exist before creating save window')
       }
 
-      const mainBounds = this.windows.main.getBounds()
-      const saveWidth = WINDOW_CONFIG.save.width
-      const saveHeight = WINDOW_CONFIG.save.height
-
-      const x = mainBounds.x + Math.floor((mainBounds.width - saveWidth) / 2)
-      const y = mainBounds.y + Math.floor((mainBounds.height - saveHeight) / 2)
-
-      this.windows.save = new BrowserWindow({
-        ...WINDOW_CONFIG.save,
-        x: x,
-        y: y,
-        alwaysOnTop: true,
-        title: 'Save Recording',
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-          preload: this.preloadPath,
-          enableRemoteModule: false,
-          sandbox: false,
-          additionalArguments: [`--save-options-b64=${Buffer.from(JSON.stringify(options)).toString('base64')}`]
-        },
-        show: false
-      })
-
-      await this.windows.save.loadFile('src/windows/save-video.html')
-
-      if (this.windows.main && typeof this.windows.main.isMinimized === 'function' && this.windows.main.isMinimized()) {
-        try {
-          this.windows.main.restore()
-        } catch (err) {}
-      }
-
-      this.windows.save.webContents.once('dom-ready', () => {
-        this.windows.save.webContents.executeJavaScript(`
-          window.saveOptions = ${JSON.stringify(options)};
-        `)
-
-        try {
-          this.windows.save.webContents.send('init-save-options', options)
-        } catch (e) {}
-      })
-
-      this.windows.save.once('ready-to-show', () => {
-        this.windows.save.show()
-      })
-
-      setTimeout(() => {
-        if (this.windows.save && !this.windows.save.isDestroyed() && !this.windows.save.isVisible()) {
-          try {
-            this.windows.save.show()
-          } catch (e) {}
+      const mainWin = this.windows.main
+      if (mainWin && !mainWin.isDestroyed()) {
+        // Show the save panel as a modal overlay inside the main window
+        if (mainWin.isMinimized()) {
+          try { mainWin.restore() } catch (e) {}
         }
-      }, 250)
-
-      this.windows.save.on('closed', () => {
-        this.windows.save = null
-      })
-
-      return this.windows.save
+        mainWin.show()
+        mainWin.focus()
+        mainWin.webContents.send('show-save-panel', options)
+        return mainWin
+      }
     } catch (error) {
       throw error
     }
   }
 
   async createSourceSelectorWindow() {
-    if (this._sourceSelectorCreating) {
-      return this._sourceSelectorCreating
+    const mainWin = this.windows.main
+    if (mainWin && !mainWin.isDestroyed()) {
+      mainWin.webContents.send('show-source-selector')
+      return mainWin
     }
-
-    this._sourceSelectorCreating = (async () => {
-      try {
-        if (this.windows.sourceSelector && !this.windows.sourceSelector.isDestroyed()) {
-          try {
-            this.windows.sourceSelector.restore() // In case it's minimized
-            this.windows.sourceSelector.show()
-            this.windows.sourceSelector.focus()
-            this.windows.sourceSelector.moveTop() // Bring to front
-
-            setTimeout(() => {
-              try {
-                if (this.windows.sourceSelector && !this.windows.sourceSelector.isDestroyed()) {
-                  if (!this.windows.sourceSelector.isVisible()) {
-                    this.windows.sourceSelector.show()
-                    this.windows.sourceSelector.focus()
-                  }
-                }
-              } catch (e) {}
-            }, 50)
-          } catch (e) {}
-          return this.windows.sourceSelector
-        }
-
-        const mainBounds = this.windows.main ? this.windows.main.getBounds() : null
-        const width = WINDOW_CONFIG.sourceSelector.width
-        const height = WINDOW_CONFIG.sourceSelector.height
-
-        let x, y
-        if (mainBounds) {
-          x = mainBounds.x + Math.floor((mainBounds.width - width) / 2)
-          y = mainBounds.y + Math.floor((mainBounds.height - height) / 2)
-        }
-
-        this.windows.sourceSelector = new BrowserWindow({
-          ...WINDOW_CONFIG.sourceSelector,
-          x,
-          y,
-          title: 'Select Source',
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            preload: this.preloadPath,
-            enableRemoteModule: false,
-            sandbox: false
-          },
-          show: false
-        })
-
-        await this.windows.sourceSelector.loadFile('src/windows/source-selector.html')
-
-        const winRef = this.windows.sourceSelector
-
-        try {
-          winRef.show()
-          winRef.focus()
-          winRef.moveTop()
-        } catch (e) {}
-
-        winRef.once('ready-to-show', () => {
-          try {
-            if (winRef && !winRef.isDestroyed()) {
-              if (!winRef.isVisible()) {
-              }
-            }
-          } catch (e) {}
-        })
-
-        winRef.on('closed', () => {
-          if (this.windows.sourceSelector === winRef) this.windows.sourceSelector = null
-        })
-
-        if (!winRef || (winRef && typeof winRef.isDestroyed === 'function' && winRef.isDestroyed())) {
-          return null
-        }
-
-        return winRef
-      } finally {
-        this._sourceSelectorCreating = null
-      }
-    })()
-
-    return this._sourceSelectorCreating
+    return null
   }
 
   async createVideoEditorWindow(options = {}) {
@@ -596,15 +468,15 @@ class WindowManager {
             winRef.on('closed', () => {
               try {
                 if (this.windows.driveAccounts === winRef) this.windows.driveAccounts = null
-                const saveWin = this.windows.save
+                const targetWin = this.windows.save || this.windows.main
                 if (
-                  saveWin &&
-                  !saveWin.isDestroyed() &&
-                  saveWin.webContents &&
-                  typeof saveWin.webContents.send === 'function'
+                  targetWin &&
+                  !targetWin.isDestroyed() &&
+                  targetWin.webContents &&
+                  typeof targetWin.webContents.send === 'function'
                 ) {
                   try {
-                    saveWin.webContents.send('drive-accounts-changed', { action: 'manage-closed' })
+                    targetWin.webContents.send('drive-accounts-changed', { action: 'manage-closed' })
                   } catch (e) {}
                 }
               } catch (e) {}
@@ -768,10 +640,14 @@ class WindowManager {
     })
   }
 
-  showMainWindow() {
+  showMainWindow(focus = true) {
     if (this.windows.main && !this.windows.main.isDestroyed()) {
-      this.windows.main.show()
-      this.windows.main.focus()
+      if (focus) {
+        this.windows.main.show()
+        this.windows.main.focus()
+      } else {
+        this.windows.main.showInactive()
+      }
     }
   }
 
@@ -779,6 +655,78 @@ class WindowManager {
     if (this.windows.main && !this.windows.main.isDestroyed()) {
       this.windows.main.minimize()
     }
+  }
+
+  showToast(options = {}, onClickCallback, durationMs = 5000) {
+    try {
+      const { ipcMain } = require('electron')
+      const { width, height } = screen.getPrimaryDisplay().workAreaSize
+      const toastW = 340
+      const toastH = 82
+      const margin = 16
+      const x = width - toastW - margin
+      const y = height - toastH - margin
+      const toastId = Date.now().toString()
+
+      const toastPreloadPath = path.join(__dirname, '../preload-toast.js')
+
+      const toast = new BrowserWindow({
+        width: toastW,
+        height: toastH,
+        x,
+        y,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        focusable: true,
+        type: process.platform === 'linux' ? 'notification' : 'panel',
+        resizable: false,
+        movable: false,
+        minimizable: false,
+        maximizable: false,
+        closable: true,
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: false,
+          preload: toastPreloadPath
+        }
+      })
+
+      const params = new URLSearchParams({
+        toastId,
+        mode: options.mode || (options.count ? 'autosave' : 'ready'),
+        count: String(options.count || 1),
+        names: (options.names || []).join('|'),
+        duration: String(durationMs)
+      })
+      toast.loadFile(path.join(__dirname, '../windows/toast.html'), { search: params.toString() })
+
+      const clickHandler = (event, id) => {
+        if (id !== toastId) return
+        ipcMain.removeListener('toast-clicked', clickHandler)
+        if (!toast.isDestroyed()) toast.close()
+        if (onClickCallback) onClickCallback()
+      }
+      ipcMain.on('toast-clicked', clickHandler)
+
+      const autoClose = setTimeout(() => {
+        ipcMain.removeListener('toast-clicked', clickHandler)
+        if (!toast.isDestroyed()) toast.close()
+      }, durationMs + 200)
+
+      toast.once('closed', () => {
+        clearTimeout(autoClose)
+        ipcMain.removeListener('toast-clicked', clickHandler)
+      })
+
+      toast.once('ready-to-show', () => {
+        toast.showInactive()
+        toast.setAlwaysOnTop(true, 'screen-saver')
+      })
+    } catch (e) {}
   }
 
   moveFloatingWindow(deltaX, deltaY) {

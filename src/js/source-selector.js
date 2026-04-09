@@ -5,6 +5,8 @@ class SourceSelector {
     this.sources = []
     this.isObserving = false
     this.lastSourceCount = 0
+    // In modal mode the start button has a different ID to avoid conflicts with main window
+    this._startBtnId = window.__sourceSelectorModalMode ? 'ssSelectorStartBtn' : 'startRecordingBtn'
 
     this.initializeUI()
     this.loadSources()
@@ -17,7 +19,7 @@ class SourceSelector {
 
     document.getElementById('closeBtn').addEventListener('click', () => this.close())
     document.getElementById('cancelBtn').addEventListener('click', () => this.close())
-    document.getElementById('startRecordingBtn').addEventListener('click', () => this.startRecording())
+    document.getElementById(this._startBtnId).addEventListener('click', () => this.startRecording())
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') this.close()
@@ -348,7 +350,7 @@ class SourceSelector {
     this.selectedSource = source
     document.getElementById('selectedInfo').classList.remove('hidden')
     document.getElementById('selectedName').textContent = source.name
-    document.getElementById('startRecordingBtn').disabled = false
+    document.getElementById(this._startBtnId).disabled = false
   }
 
   startRecording() {
@@ -369,7 +371,7 @@ class SourceSelector {
       display_id: this.selectedSource.display_id
     }
 
-    const startBtn = document.getElementById('startRecordingBtn')
+    const startBtn = document.getElementById(this._startBtnId)
     if (startBtn) {
       startBtn.disabled = true
       startBtn.textContent = 'Starting...'
@@ -384,6 +386,12 @@ class SourceSelector {
 
   close() {
     this.isObserving = false
+
+    if (window.__sourceSelectorModalMode) {
+      const overlay = document.getElementById('sourceSelectorOverlay')
+      if (overlay) overlay.classList.add('hidden')
+      return
+    }
 
     if (window.electronAPI && window.electronAPI.closeSourceSelector) {
       window.electronAPI.closeSourceSelector()
@@ -408,5 +416,6 @@ class SourceSelector {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.__isMainWindow) return
   new SourceSelector()
 })

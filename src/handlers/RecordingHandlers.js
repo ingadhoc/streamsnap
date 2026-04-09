@@ -1,4 +1,4 @@
-const { ipcMain, screen } = require('electron')
+const { ipcMain, screen, app: electronApp } = require('electron')
 const DriveAccountManager = require('../services/DriveAccountManager')
 const YouTubeAccountManager = require('../services/YouTubeAccountManager')
 
@@ -113,7 +113,14 @@ class RecordingHandlers {
     ipcMain.handle('stop-recording', async () => {
       try {
         this.app.recordingManager.stopRecording()
-        this.app.windowManager.showMainWindow()
+        let autoSaveEnabled = false
+        try {
+          const s = await this.app.getSettings()
+          autoSaveEnabled = s?.driveAutoSaveEnabled === true && Array.isArray(s?.driveAutoSaveAccountIds) && s.driveAutoSaveAccountIds.length > 0
+        } catch (e) {}
+        if (!autoSaveEnabled) {
+          this.app.windowManager.showMainWindow(false)
+        }
         this.app.broadcastToWindows('stop-recording-event')
         await new Promise(resolve => setTimeout(resolve, 250))
         this.app.windowManager.closeWindow('floating')
@@ -137,7 +144,9 @@ class RecordingHandlers {
         try {
           this.app.windowManager.closeWindow('webcam')
         } catch (e) {}
-        this.app.windowManager.showMainWindow()
+        this.app.windowManager.showToast({ mode: 'discarded' }, () => {
+          this.app.windowManager.showMainWindow()
+        })
         return { success: true }
       } catch (error) {
         return { success: false, error: error.message }
@@ -165,15 +174,23 @@ class RecordingHandlers {
         const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
         const recordedPath = this.app.recordingManager.getRecordedVideoPath()
 
-        this.app.windowManager.showMainWindow()
-        await this.app.windowManager.createSaveWindow({
+        const saveOptions = {
           showDriveOption: Boolean(hasDriveAccounts),
           showYouTubeOption: Boolean(hasYouTubeAccounts),
           showDriveSignIn: !this.app.driveService.isAuthenticated(),
           showLocalOption: true,
           tempVideoPath: recordedPath,
           driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
-        })
+        }
+
+        this.app.windowManager.showMainWindow(false)
+        this.app.windowManager.showToast(
+          { mode: 'ready' },
+          () => {
+            this.app.windowManager.showMainWindow(true)
+            this.app.windowManager.createSaveWindow(saveOptions).catch(() => {})
+          }
+        )
 
         return { success: true, uploaded: false }
       } catch (error) {
@@ -385,9 +402,68 @@ class RecordingHandlers {
     const hasDriveAccounts = DriveAccountManager.getActiveAccounts().length > 0
     const hasYouTubeAccounts = YouTubeAccountManager.getActiveAccounts().length > 0
 
-    this.app.windowManager.showMainWindow()
+    const autoSaveSucceededAll = autoSaveResult.attempted && autoSaveResult.autoSaved
 
-    await this.app.windowManager.createSaveWindow({
+    if (autoSaveResult.attempted && autoSaveResult.uploadedCount > 0) {
+      const count = autoSaveResult.uploadedCount
+      const total = autoSaveResult.totalAccounts
+      const title = 'StreamSnap — Grabación guardada'
+      const body = count === total
+        ? `Subido a ${count} cuenta${count !== 1 ? 's' : ''} de Drive. Tocá para ver detalles.`
+        : `Subido a ${count} de ${total} cuenta${total !== 1 ? 's' : ''} de Drive. Tocá para ver detalles.`
+
+      const showSaveWindow = () => {
+        this.app.windowManager.showMainWindow(true)
+        this.app.windowManager.createSaveWindow({
+          showDriveOption: Boolean(hasDriveAccounts),
+          showYouTubeOption: Boolean(hasYouTubeAccounts),
+          showDriveSignIn: !this.app.driveService.isAuthenticated(),
+          showLocalOption: true,
+          tempVideoPath: tempPath,
+          driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined,
+          autoSaved: autoSaveResult.autoSaved,
+          autoSaveAttempted: autoSaveResult.attempted,
+          autoSaveUploadedCount: autoSaveResult.uploadedCount,
+          autoSaveTotalAccounts: autoSaveResult.totalAccounts,
+          autoSaveUploads: autoSaveResult.uploads,
+          autoSaveFailedAccounts: autoSaveResult.failedAccounts
+        }).catch(() => {})
+      }
+
+      try {
+        if (process.platform === 'darwin' && electronApp.dock) {
+          electronApp.dock.setBadge('✓')
+          electronApp.dock.bounce('informational')
+          electronApp.once('browser-window-focus', () => electronApp.dock.setBadge(''))
+        }
+      } catch (e) {}
+
+      this.app.windowManager.showToast(
+        {
+          count: autoSaveResult.uploadedCount,
+          names: autoSaveResult.uploads.map(u => u.accountName || u.accountEmail || 'Drive')
+        },
+        showSaveWindow
+      )
+    }
+
+    if (autoSaveSucceededAll) {
+      return {
+        success: true,
+        tempPath,
+        outputFormat,
+        autoSaved: true,
+        uploadedCount: autoSaveResult.uploadedCount,
+        totalAccounts: autoSaveResult.totalAccounts,
+        autoSaveAttempted: true,
+        autoSaveUploadedCount: autoSaveResult.uploadedCount,
+        autoSaveTotalAccounts: autoSaveResult.totalAccounts
+      }
+    }
+
+    this.app.windowManager.showMainWindow(false)
+
+    const saveOpts = {
       showDriveOption: Boolean(hasDriveAccounts),
       showYouTubeOption: Boolean(hasYouTubeAccounts),
       showDriveSignIn: !this.app.driveService.isAuthenticated(),
@@ -400,7 +476,15 @@ class RecordingHandlers {
       autoSaveTotalAccounts: autoSaveResult.totalAccounts,
       autoSaveUploads: autoSaveResult.uploads,
       autoSaveFailedAccounts: autoSaveResult.failedAccounts
-    })
+    }
+
+    this.app.windowManager.showToast(
+      { mode: 'ready' },
+      () => {
+        this.app.windowManager.showMainWindow(true)
+        this.app.windowManager.createSaveWindow(saveOpts).catch(() => {})
+      }
+    )
 
     return {
       success: true,

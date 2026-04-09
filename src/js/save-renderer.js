@@ -15,7 +15,7 @@ class SaveVideoHandler {
     this.loadVideoData()
 
     window.addEventListener('beforeunload', async e => {
-      if (this.videoBlob) {
+      if (this.videoBlob && !window.__isMainWindow) {
         try {
           if (window.electronAPI && window.electronAPI.discardRecordedVideo) {
             await window.electronAPI.discardRecordedVideo()
@@ -133,9 +133,9 @@ class SaveVideoHandler {
     const fileNameInput = document.getElementById('fileName')
     const localSaveBtn = document.getElementById('localSaveBtn')
     const browseLocalBtn = document.getElementById('browseLocalBtn')
-    const manageDriveAccountsBtn = document.getElementById('manageDriveAccountsBtn')
+    const manageDriveAccountsBtn = document.getElementById('savePanelManageDriveBtn') || document.getElementById('manageDriveAccountsBtn')
     const addMoreAccountsBtn = document.getElementById('addMoreAccountsBtn')
-    const manageYouTubeAccountsBtn = document.getElementById('manageYouTubeAccountsBtn')
+    const manageYouTubeAccountsBtn = document.getElementById('savePanelManageYouTubeBtn') || document.getElementById('manageYouTubeAccountsBtn')
     const addMoreYouTubeAccountsBtn = document.getElementById('addMoreYouTubeAccountsBtn')
     const editVideoBtn = document.getElementById('editVideoBtn')
 
@@ -708,7 +708,12 @@ class SaveVideoHandler {
           await window.electronAPI.discardRecordedVideo()
         }
       } catch (e) {}
-      window.close()
+      if (window.__saveModalMode) {
+        const overlay = document.getElementById('savePanelOverlay')
+        if (overlay) overlay.classList.add('hidden')
+      } else {
+        window.close()
+      }
     }
   }
 
@@ -1134,6 +1139,7 @@ class SaveVideoHandler {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.__isMainWindow) return
   window.saveVideoHandler = new SaveVideoHandler()
 })
 

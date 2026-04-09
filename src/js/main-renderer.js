@@ -411,6 +411,65 @@ class ScreenRecorder {
         }
       })
     }
+
+    if (window.electronAPI.onShowSavePanel) {
+      window.electronAPI.onShowSavePanel(options => {
+        window.__saveModalMode = true
+        window.saveOptions = options
+        const overlay = document.getElementById('savePanelOverlay')
+        if (!overlay) return
+        if (window.saveVideoHandler) {
+          // Reset state for new recording
+          window.saveVideoHandler.saveOptions = options
+          window.saveVideoHandler.videoBlob = null
+          window.saveVideoHandler.autoSaveSuccessModalShown = false
+          window.saveVideoHandler.selectedAccounts = new Map()
+          window.saveVideoHandler.selectedYouTubeAccounts = new Set()
+          // Reset filename with new timestamp
+          const now = new Date()
+          const pad = n => String(n).padStart(2, '0')
+          const dateStr = `${pad(now.getDate())}_${pad(now.getMonth() + 1)}_${now.getFullYear()}_${pad(now.getHours())}_${pad(now.getMinutes())}_${pad(now.getSeconds())}`
+          const fileNameInput = document.getElementById('fileName')
+          if (fileNameInput) fileNameInput.value = `StreamSnap_${dateStr}`
+          window.saveVideoHandler.loadVideoData()
+          window.saveVideoHandler.loadSaveOptions()
+        } else {
+          window.saveVideoHandler = new SaveVideoHandler()
+        }
+        overlay.classList.remove('hidden')
+        // Close overlay when clicking the backdrop (outside the content card)
+        overlay.addEventListener('click', e => {
+          if (e.target === overlay) overlay.classList.add('hidden')
+        }, { once: false })
+        // Close button inside the overlay
+        const closeBtn = document.getElementById('savePanelCloseBtn')
+        if (closeBtn && !closeBtn._hasOverlayListener) {
+          closeBtn._hasOverlayListener = true
+          closeBtn.addEventListener('click', () => overlay.classList.add('hidden'))
+        }
+      })
+    }
+
+    if (window.electronAPI.onShowSourceSelector) {
+      window.electronAPI.onShowSourceSelector(() => {
+        window.__sourceSelectorModalMode = true
+        const overlay = document.getElementById('sourceSelectorOverlay')
+        if (!overlay) return
+        if (window.sourceSelector) {
+          // Reset selection state for a fresh pick
+          window.sourceSelector.selectedSource = null
+          window.sourceSelector.isObserving = false
+          document.getElementById('selectedInfo')?.classList.add('hidden')
+          const startBtn = document.getElementById('ssSelectorStartBtn')
+          if (startBtn) startBtn.disabled = true
+          window.sourceSelector.loadSources()
+          window.sourceSelector.startRealTimeDetection()
+        } else {
+          window.sourceSelector = new SourceSelector()
+        }
+        overlay.classList.remove('hidden')
+      })
+    }
   }
 
   async openSourceSelector() {
@@ -802,7 +861,7 @@ class ScreenRecorder {
       this.uiManager.hideConversionProgress()
       if (result.autoSaved) {
         this.uiManager.updateRecordingStatus(
-          `Auto-saved to Drive (${result.uploadedCount || 0} account${result.uploadedCount === 1 ? '' : 's'}) - review Open & Copy modal`,
+          `Auto-saved to Drive (${result.uploadedCount || 0} account${result.uploadedCount === 1 ? '' : 's'})`,
           'complete'
         )
       } else if (result.autoSaveAttempted && result.autoSaveUploadedCount > 0) {

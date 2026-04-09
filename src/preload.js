@@ -147,6 +147,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     })
   },
 
+  onShowSavePanel: callback => {
+    ipcRenderer.on('show-save-panel', (event, data) => {
+      try {
+        callback(data)
+      } catch (e) {}
+    })
+  },
+
+  onShowSourceSelector: callback => {
+    ipcRenderer.on('show-source-selector', () => {
+      try {
+        callback()
+      } catch (e) {}
+    })
+  },
+
   onInitVideoEditorOptions: callback => {
     ipcRenderer.on('init-video-editor-options', (event, data) => {
       try {
