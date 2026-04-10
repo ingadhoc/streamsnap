@@ -131,7 +131,7 @@
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "darkModeSupport": true,
-      "identity": null,
+      "identity": "StreamSnapLocalCert",
       "entitlements": "entitlements.mac.plist",
       "minimumSystemVersion": "10.13.0"
     },

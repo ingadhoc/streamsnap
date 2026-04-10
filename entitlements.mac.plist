@@ -50,14 +50,6 @@
     <key>com.apple.security.files.documents.read-write</key>
     <true/>
     
-    <!-- Allow outgoing network connections -->
-    <key>com.apple.security.network.client</key>
-    <true/>
-    
-    <!-- Allow incoming network connections for OAuth -->
-    <key>com.apple.security.network.server</key>
-    <true/>
-    
     <!-- Disable automatic termination -->
     <key>com.apple.security.automation.apple-events</key>
     <true/>
