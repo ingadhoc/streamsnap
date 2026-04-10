@@ -132,6 +132,10 @@ class WindowManager {
   }
 
   async createFloatingWindow(settings = {}, options = {}) {
+    // Remember which display this recording targets so the toast can appear there.
+    if (options && options.display) {
+      this.lastRecordingDisplay = options.display
+    }
     try {
       const targetDisplay = options?.display || screen.getPrimaryDisplay()
       const workArea = targetDisplay.workArea || targetDisplay.bounds || {}
@@ -231,7 +235,7 @@ class WindowManager {
     }
   }
 
-  async createSaveWindow(options = {}) {
+  async createSaveWindow(options = {}, focus = true) {
     try {
       if (!this.windows.main) {
         throw new Error('Main window must exist before creating save window')
@@ -239,12 +243,21 @@ class WindowManager {
 
       const mainWin = this.windows.main
       if (mainWin && !mainWin.isDestroyed()) {
-        // Show the save panel as a modal overlay inside the main window
-        if (mainWin.isMinimized()) {
-          try { mainWin.restore() } catch (e) {}
+        if (focus) {
+          // Bring to front: restore if minimized, then show and focus
+          if (mainWin.isMinimized()) {
+            try { mainWin.restore() } catch (e) {}
+          }
+          mainWin.show()
+          mainWin.focus()
+        } else {
+          // Draw attention without stealing focus: flash the taskbar/dock button
+          try { mainWin.flashFrame(true) } catch (e) {}
+          // Stop flashing once the user focuses the window
+          mainWin.once('focus', () => { try { mainWin.flashFrame(false) } catch (e) {} })
         }
-        mainWin.show()
-        mainWin.focus()
+        // webContents can receive IPC even while the window is minimized,
+        // so always send the panel message regardless of focus mode.
         mainWin.webContents.send('show-save-panel', options)
         return mainWin
       }
@@ -660,12 +673,14 @@ class WindowManager {
   showToast(options = {}, onClickCallback, durationMs = 5000) {
     try {
       const { ipcMain } = require('electron')
-      const { width, height } = screen.getPrimaryDisplay().workAreaSize
+      const targetDisplay = this.lastRecordingDisplay || screen.getPrimaryDisplay()
+      const workArea = targetDisplay.workArea || targetDisplay.bounds
+      const { width, height, x: areaX, y: areaY } = workArea
       const toastW = 340
       const toastH = 82
       const margin = 16
-      const x = width - toastW - margin
-      const y = height - toastH - margin
+      const x = areaX + width - toastW - margin
+      const y = areaY + height - toastH - margin
       const toastId = Date.now().toString()
 
       const toastPreloadPath = path.join(__dirname, '../preload-toast.js')
