@@ -183,12 +183,13 @@ class RecordingHandlers {
           driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined
         }
 
-        this.app.windowManager.showMainWindow(false)
+        // Open the save panel immediately (without stealing focus) so it is always accessible.
+        // The toast is supplementary: clicking it brings the window to the front.
+        this.app.windowManager.createSaveWindow(saveOptions, false).catch(() => {})
         this.app.windowManager.showToast(
           { mode: 'ready' },
           () => {
             this.app.windowManager.showMainWindow(true)
-            this.app.windowManager.createSaveWindow(saveOptions).catch(() => {})
           }
         )
 
@@ -412,23 +413,24 @@ class RecordingHandlers {
         ? `Subido a ${count} cuenta${count !== 1 ? 's' : ''} de Drive. Tocá para ver detalles.`
         : `Subido a ${count} de ${total} cuenta${total !== 1 ? 's' : ''} de Drive. Tocá para ver detalles.`
 
-      const showSaveWindow = () => {
-        this.app.windowManager.showMainWindow(true)
-        this.app.windowManager.createSaveWindow({
-          showDriveOption: Boolean(hasDriveAccounts),
-          showYouTubeOption: Boolean(hasYouTubeAccounts),
-          showDriveSignIn: !this.app.driveService.isAuthenticated(),
-          showLocalOption: true,
-          tempVideoPath: tempPath,
-          driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined,
-          autoSaved: autoSaveResult.autoSaved,
-          autoSaveAttempted: autoSaveResult.attempted,
-          autoSaveUploadedCount: autoSaveResult.uploadedCount,
-          autoSaveTotalAccounts: autoSaveResult.totalAccounts,
-          autoSaveUploads: autoSaveResult.uploads,
-          autoSaveFailedAccounts: autoSaveResult.failedAccounts
-        }).catch(() => {})
+      const autoSaveWindowOpts = {
+        showDriveOption: Boolean(hasDriveAccounts),
+        showYouTubeOption: Boolean(hasYouTubeAccounts),
+        showDriveSignIn: !this.app.driveService.isAuthenticated(),
+        showLocalOption: true,
+        tempVideoPath: tempPath,
+        driveAccessToken: this.app.driveService.isAuthenticated() ? this.app.driveService.accessToken : undefined,
+        autoSaved: autoSaveResult.autoSaved,
+        autoSaveAttempted: autoSaveResult.attempted,
+        autoSaveUploadedCount: autoSaveResult.uploadedCount,
+        autoSaveTotalAccounts: autoSaveResult.totalAccounts,
+        autoSaveUploads: autoSaveResult.uploads,
+        autoSaveFailedAccounts: autoSaveResult.failedAccounts
       }
+
+      // Open the save panel immediately in background (no focus steal).
+      // The toast callback brings the window to front if user clicks it.
+      this.app.windowManager.createSaveWindow(autoSaveWindowOpts, false).catch(() => {})
 
       try {
         if (process.platform === 'darwin' && electronApp.dock) {
@@ -443,7 +445,7 @@ class RecordingHandlers {
           count: autoSaveResult.uploadedCount,
           names: autoSaveResult.uploads.map(u => u.accountName || u.accountEmail || 'Drive')
         },
-        showSaveWindow
+        () => { this.app.windowManager.showMainWindow(true) }
       )
     }
 
@@ -461,8 +463,6 @@ class RecordingHandlers {
       }
     }
 
-    this.app.windowManager.showMainWindow(false)
-
     const saveOpts = {
       showDriveOption: Boolean(hasDriveAccounts),
       showYouTubeOption: Boolean(hasYouTubeAccounts),
@@ -478,11 +478,13 @@ class RecordingHandlers {
       autoSaveFailedAccounts: autoSaveResult.failedAccounts
     }
 
+    // Open the save panel immediately (without stealing focus) so it is always accessible.
+    // The toast is supplementary: clicking it brings the window to the front.
+    this.app.windowManager.createSaveWindow(saveOpts, false).catch(() => {})
     this.app.windowManager.showToast(
       { mode: 'ready' },
       () => {
         this.app.windowManager.showMainWindow(true)
-        this.app.windowManager.createSaveWindow(saveOpts).catch(() => {})
       }
     )
 
