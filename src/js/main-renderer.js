@@ -854,6 +854,14 @@ class ScreenRecorder {
 
       const result = await window.electronAPI.saveRecordedVideoToTemp(uint8Array, includedDuration, { mimeType })
 
+      if (window.__isMainWindow) {
+        window.__currentRecordingData = {
+            recordedVideoBlob: blob,
+            recordedDuration: includedDuration,
+            tempVideoPath: result?.tempPath
+        };
+      }
+
       if (!result || !result.success) {
         throw new Error(result?.error || 'Failed to save recording')
       }

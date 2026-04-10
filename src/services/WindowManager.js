@@ -253,8 +253,10 @@ class WindowManager {
         } else {
           // Draw attention without stealing focus: flash the taskbar/dock button
           try { mainWin.flashFrame(true) } catch (e) {}
-          // Stop flashing once the user focuses the window
-          mainWin.once('focus', () => { try { mainWin.flashFrame(false) } catch (e) {} })
+          // Stop flashing once the user focuses the window (not needed on macOS, explicitly calling it can crash)
+          if (process.platform !== 'darwin') {
+            mainWin.once('focus', () => { try { mainWin.flashFrame(false) } catch (e) {} })
+          }
         }
         // webContents can receive IPC even while the window is minimized,
         // so always send the panel message regardless of focus mode.
@@ -695,7 +697,7 @@ class WindowManager {
         alwaysOnTop: true,
         skipTaskbar: true,
         focusable: true,
-        type: process.platform === 'linux' ? 'notification' : 'panel',
+        type: process.platform === 'linux' ? 'notification' : undefined,
         resizable: false,
         movable: false,
         minimizable: false,

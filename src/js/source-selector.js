@@ -43,6 +43,9 @@ class SourceSelector {
   }
 
   setupSystemObservers() {
+    if (this._systemObserversSetup) return
+    this._systemObserversSetup = true
+
     if (window.electronAPI && window.electronAPI.onAppActivate) {
       window.electronAPI.onAppActivate(() => {
         this.checkForSourceChanges()
@@ -63,7 +66,14 @@ class SourceSelector {
       })
     })
 
-    observer.observe(document.body)
+    this._intersectionObserver = observer
+
+    if (window.__sourceSelectorModalMode) {
+      const overlay = document.getElementById('sourceSelectorOverlay')
+      if (overlay) observer.observe(overlay)
+    } else {
+      observer.observe(document.body)
+    }
   }
 
   setupMutationObserver() {
@@ -104,6 +114,8 @@ class SourceSelector {
   }
 
   async checkForSourceChanges() {
+    if (!this.isObserving) return
+
     try {
       const newSources = await window.electronAPI.getDesktopSources()
 
@@ -386,6 +398,11 @@ class SourceSelector {
 
   close() {
     this.isObserving = false
+
+    if (this._intersectionObserver) {
+      this._intersectionObserver.disconnect()
+      this._intersectionObserver = null
+    }
 
     if (window.__sourceSelectorModalMode) {
       const overlay = document.getElementById('sourceSelectorOverlay')

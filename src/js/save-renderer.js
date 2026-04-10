@@ -644,7 +644,10 @@ class SaveVideoHandler {
 
       if (window.electronAPI && window.electronAPI.getMainWindowData) {
         try {
-          const data = await window.electronAPI.getMainWindowData()
+          const data = window.__isMainWindow && window.__currentRecordingData
+            ? window.__currentRecordingData
+            : await window.electronAPI.getMainWindowData()
+          
           const videoBlob = data && (data.recordedVideoBlob || data.videoBlob)
 
           if (videoBlob) {

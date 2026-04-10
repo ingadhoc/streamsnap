@@ -119,7 +119,7 @@ class RecordingHandlers {
           autoSaveEnabled = s?.driveAutoSaveEnabled === true && Array.isArray(s?.driveAutoSaveAccountIds) && s.driveAutoSaveAccountIds.length > 0
         } catch (e) {}
         if (!autoSaveEnabled) {
-          this.app.windowManager.showMainWindow(false)
+          // Window remains hidden until Toast is clicked
         }
         this.app.broadcastToWindows('stop-recording-event')
         await new Promise(resolve => setTimeout(resolve, 250))
