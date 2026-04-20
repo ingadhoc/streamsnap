@@ -116,7 +116,8 @@ class StreamSnapApp {
         } catch (e) {}
       }
 
-      await this.windowManager.createMainWindow()
+      const isHiddenLaunch = app.getLoginItemSettings().wasOpenedAsHidden || process.argv.includes('--hidden')
+      await this.windowManager.createMainWindow(isHiddenLaunch)
       this.isInitialized = true
 
       try {

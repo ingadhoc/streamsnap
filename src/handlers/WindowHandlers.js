@@ -174,7 +174,9 @@ class WindowHandlers {
       try {
         electronApp.setLoginItemSettings({
           openAtLogin: enabled,
-          path: electronApp.getPath('exe')
+          path: electronApp.getPath('exe'),
+          openAsHidden: true,
+          args: ['--hidden']
         })
         return { success: true }
       } catch (error) {
