@@ -23,7 +23,8 @@ class SettingsManager {
       enableCountdown: true,
       countdownDuration: 5,
       saveFolderPath: '',
-      enableMp4Conversion: true
+      enableMp4Conversion: true,
+      launchOnStartup: false
     }
   }
 
@@ -81,6 +82,8 @@ class SettingsManager {
     document.getElementById('countdownDuration').value = this.settings.countdownDuration || 5
     const enableMp4ConversionEl = document.getElementById('enableMp4Conversion')
     if (enableMp4ConversionEl) enableMp4ConversionEl.checked = this.settings.enableMp4Conversion !== false
+    const launchOnStartupEl = document.getElementById('launchOnStartup')
+    if (launchOnStartupEl) launchOnStartupEl.checked = this.settings.launchOnStartup === true
     const driveAutoSaveEnabledEl = document.getElementById('driveAutoSaveEnabled')
     if (driveAutoSaveEnabledEl) driveAutoSaveEnabledEl.checked = this.settings.driveAutoSaveEnabled === true
     this.updateCountdownOptionsVisibility()
