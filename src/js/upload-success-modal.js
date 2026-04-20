@@ -188,7 +188,7 @@ class UploadSuccessModal {
         })
         .join('')
 
-      const modalHTML = `<div class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="success-icon">✅</div><h2 class="modal-title">Uploaded to Drive!</h2><p class="modal-subtitle">Your video has been auto-saved. You can open links or rename in Drive.</p></div><div class="modal-info"><div class="flex items-center justify-between mb-3"><p class="info-label mb-0">Uploaded Accounts</p><span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">${safeUploads.length} uploaded</span></div><div id="driveModalUploadsList" class="space-y-2">${listHtml}</div><div class="mt-4"><p class="info-label">Video Title:</p><div class="flex gap-2"><input id="driveModalTitleInput" type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500" value="${this.escapeHtml(initialTitle)}" placeholder="Video title" /><button id="driveModalRenameBtn" class="btn btn-primary" style="flex:0 0 auto;">Update in Drive</button></div><p id="driveModalRenameStatus" class="text-xs text-gray-600 mt-2"></p></div></div><div class="modal-actions"><button id="driveModalBackBtn" class="btn btn-secondary">Back</button><button id="driveModalCloseAllBtn" class="btn btn-danger">Finish</button></div></div></div>`
+      const modalHTML = `<div class="modal-overlay"><div class="modal-content"><div class="modal-header"><div class="success-icon">✅</div><h2 class="modal-title">Uploaded to Drive!</h2><p class="modal-subtitle">Your video has been auto-saved. You can open links or rename in Drive.</p></div><div class="modal-info"><div class="flex items-center justify-between mb-3"><p class="info-label mb-0">Uploaded Accounts</p><span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">${safeUploads.length} uploaded</span></div><div id="driveModalUploadsList" class="space-y-2">${listHtml}</div><div class="mt-4"><p class="info-label">Video Title:</p><div class="flex gap-2"><input id="driveModalTitleInput" type="text" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:border-blue-500" value="${this.escapeHtml(initialTitle)}" placeholder="Video title" /><button id="driveModalRenameBtn" class="btn btn-primary" style="flex:0 0 auto;">Update in Drive</button></div><p id="driveModalRenameStatus" class="text-xs text-gray-600 mt-2"></p></div></div><div class="modal-actions"><button id="driveModalCloseBtn" class="btn btn-secondary">Close</button></div></div></div>`
 
       const modalContainer = document.createElement('div')
       modalContainer.innerHTML = modalHTML.trim()
@@ -273,27 +273,9 @@ class UploadSuccessModal {
         })
       }
 
-      const backBtn = this.modal.querySelector('#driveModalBackBtn')
-      if (backBtn) {
-        backBtn.addEventListener('click', () => this.close())
-      }
-
-      const closeAllBtn = this.modal.querySelector('#driveModalCloseAllBtn')
-      if (closeAllBtn) {
-        closeAllBtn.addEventListener('click', async () => {
-          this.close()
-          try {
-            if (window.electronAPI && window.electronAPI.discardRecordedVideo) {
-              await window.electronAPI.discardRecordedVideo()
-            }
-          } catch (e) {}
-          if (window.__saveModalMode) {
-            const overlay = document.getElementById('savePanelOverlay')
-            if (overlay) overlay.classList.add('hidden')
-          } else {
-            window.close()
-          }
-        })
+      const closeBtn = this.modal.querySelector('#driveModalCloseBtn')
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => this.close())
       }
 
       this.modal.addEventListener('click', e => {
