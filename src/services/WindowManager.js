@@ -91,7 +91,7 @@ class WindowManager {
     }
   }
 
-  async createMainWindow() {
+  async createMainWindow(startMinimized = false) {
     try {
       this.windows.main = new BrowserWindow({
         ...WINDOW_CONFIG.main,
@@ -109,17 +109,13 @@ class WindowManager {
 
       await this.windows.main.loadFile('src/windows/main.html')
 
-      this.windows.main.webContents.once('dom-ready', () => {
-        this.windows.main.show()
-      })
-
       this.windows.main.once('ready-to-show', () => {
-        if (!this.windows.main.isVisible()) {
+        if (startMinimized) {
+          this.windows.main.minimize()
+        } else {
           this.windows.main.show()
         }
       })
-
-      this.windows.main.show()
 
       this.windows.main.on('closed', () => {
         this.windows.main = null
