@@ -109,6 +109,13 @@ class StreamSnapApp {
         }, { useSystemPicker: true })
       }
 
+      if (process.platform === 'darwin') {
+        const path = require('path')
+        try {
+          app.dock.setIcon(path.join(__dirname, 'src/icon.icns'))
+        } catch (e) {}
+      }
+
       await this.windowManager.createMainWindow()
       this.isInitialized = true
 
