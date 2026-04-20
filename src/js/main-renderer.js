@@ -82,25 +82,11 @@ class ScreenRecorder {
   }
 
   setupSettingsControls() {
-    this.setupGeneralControls()
     this.setupAudioControls()
     this.setupVideoOutputControls()
     this.setupCountdownControls()
     this.setupFolderControls()
     this.setupDriveControls()
-  }
-
-  setupGeneralControls() {
-    const launchOnStartupEl = document.getElementById('launchOnStartup')
-    if (launchOnStartupEl) {
-      launchOnStartupEl.addEventListener('change', e => {
-        this.settingsManager.settings.launchOnStartup = e.target.checked
-        this.settingsManager.saveSettings()
-        if (window.electronAPI && window.electronAPI.setLaunchOnStartup) {
-          window.electronAPI.setLaunchOnStartup(e.target.checked)
-        }
-      })
-    }
   }
 
   setupVideoOutputControls() {

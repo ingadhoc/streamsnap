@@ -131,8 +131,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return null
   },
 
-  setLaunchOnStartup: enabled => ipcRenderer.invoke('set-launch-on-startup', enabled),
-
   onStopRecording: callback => ipcRenderer.on('stop-recording-event', callback),
   onPauseRecording: callback => ipcRenderer.on('pause-recording-event', callback),
   onResumeRecording: callback => ipcRenderer.on('resume-recording-event', callback),

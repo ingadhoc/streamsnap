@@ -109,15 +109,7 @@ class StreamSnapApp {
         }, { useSystemPicker: true })
       }
 
-      if (process.platform === 'darwin') {
-        const path = require('path')
-        try {
-          app.dock.setIcon(path.join(__dirname, 'src/icon.icns'))
-        } catch (e) {}
-      }
-
-      const isHiddenLaunch = app.getLoginItemSettings().wasOpenedAsHidden || process.argv.includes('--hidden')
-      await this.windowManager.createMainWindow(isHiddenLaunch)
+      await this.windowManager.createMainWindow()
       this.isInitialized = true
 
       try {
