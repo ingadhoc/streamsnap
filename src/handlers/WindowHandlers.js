@@ -1,4 +1,4 @@
-const { ipcMain, screen, app: electronApp } = require('electron')
+const { ipcMain, screen } = require('electron')
 
 class WindowHandlers {
   constructor(app) {
@@ -164,18 +164,6 @@ class WindowHandlers {
         if (!win) {
           return { success: false, error: 'Window not created' }
         }
-        return { success: true }
-      } catch (error) {
-        return { success: false, error: error.message }
-      }
-    })
-
-    ipcMain.handle('set-launch-on-startup', (event, enabled) => {
-      try {
-        electronApp.setLoginItemSettings({
-          openAtLogin: enabled,
-          path: electronApp.getPath('exe')
-        })
         return { success: true }
       } catch (error) {
         return { success: false, error: error.message }
