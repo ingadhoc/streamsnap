@@ -1,5 +1,6 @@
 class YouTubeAccountsManager {
-  constructor() {
+  constructor(root = document) {
+    this.root = root
     this.accounts = []
     this.isAddingAccount = false
     this.init()
@@ -12,8 +13,14 @@ class YouTubeAccountsManager {
   }
 
   setupEventListeners() {
-    document.getElementById('addAccountBtn').addEventListener('click', () => this.addAccount())
-    document.getElementById('closeBtn').addEventListener('click', () => window.close())
+    this.root.querySelector('#addAccountBtn')?.addEventListener('click', () => this.addAccount())
+    this.root.querySelector('#closeBtn')?.addEventListener('click', () => {
+      if (window.__youtubeAccountsModalMode) {
+        document.getElementById('youtubeAccountsOverlay')?.classList.add('hidden')
+      } else {
+        window.close()
+      }
+    })
 
     if (window.electronAPI && window.electronAPI.onYouTubeAuthUpdated) {
       window.electronAPI.onYouTubeAuthUpdated(() => {
@@ -38,7 +45,7 @@ class YouTubeAccountsManager {
       return
     }
 
-    const btn = document.getElementById('addAccountBtn')
+    const btn = this.root.querySelector('#addAccountBtn')
 
     try {
       this.isAddingAccount = true
@@ -98,8 +105,8 @@ class YouTubeAccountsManager {
   }
 
   renderAccounts() {
-    const container = document.getElementById('accountsList')
-    const template = document.getElementById('accountTemplate')
+    const container = this.root.querySelector('#accountsList')
+    const template = this.root.querySelector('#accountTemplate')
 
     if (!this.accounts || this.accounts.length === 0) {
       container.innerHTML =
@@ -165,6 +172,22 @@ class YouTubeAccountsManager {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  new YouTubeAccountsManager()
-})
+function bootstrapYouTubeAccountsUI() {
+  const root = document.querySelector('[data-youtube-accounts-root]') || document
+  if (!root.querySelector('#accountsList')) {
+    return
+  }
+
+  if (root.__youtubeAccountsUI) {
+    root.__youtubeAccountsUI.loadAccounts().then(() => root.__youtubeAccountsUI.renderAccounts())
+    return
+  }
+
+  root.__youtubeAccountsUI = new YouTubeAccountsManager(root)
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapYouTubeAccountsUI)
+} else {
+  bootstrapYouTubeAccountsUI()
+}

@@ -823,53 +823,13 @@ class WindowManager {
 
   async createDriveAccountsWindow() {
     try {
-      if (this.windows.driveAccounts && !this.windows.driveAccounts.isDestroyed()) {
-        this.windows.driveAccounts.focus()
-        return this.windows.driveAccounts
+      const mainWin = this.windows.main
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.webContents.send('show-drive-accounts')
+        return mainWin
       }
 
-      const mainWindow = this.windows.main
-      let x, y
-
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        const mainBounds = mainWindow.getBounds()
-        const width = 700
-        const height = 600
-        x = mainBounds.x + Math.floor((mainBounds.width - width) / 2)
-        y = mainBounds.y + Math.floor((mainBounds.height - height) / 2)
-      }
-
-      this.windows.driveAccounts = new BrowserWindow({
-        width: 700,
-        height: 600,
-        x: x,
-        y: y,
-        title: 'Google Drive Accounts',
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-          preload: this.preloadPath,
-          enableRemoteModule: false,
-          sandbox: false
-        },
-        show: false,
-        resizable: true,
-        minimizable: true,
-        maximizable: true,
-        fullscreenable: false
-      })
-
-      await this.windows.driveAccounts.loadFile('src/windows/drive-accounts.html')
-
-      this.windows.driveAccounts.once('ready-to-show', () => {
-        this.windows.driveAccounts.show()
-      })
-
-      this.windows.driveAccounts.on('closed', () => {
-        this.windows.driveAccounts = null
-      })
-
-      return this.windows.driveAccounts
+      return null
     } catch (error) {
       return null
     }
@@ -877,53 +837,13 @@ class WindowManager {
 
   async createYouTubeAccountsWindow() {
     try {
-      if (this.windows.youtubeAccounts && !this.windows.youtubeAccounts.isDestroyed()) {
-        this.windows.youtubeAccounts.focus()
-        return this.windows.youtubeAccounts
+      const mainWin = this.windows.main
+      if (mainWin && !mainWin.isDestroyed()) {
+        mainWin.webContents.send('show-youtube-accounts')
+        return mainWin
       }
 
-      const mainWindow = this.windows.main
-      let x, y
-
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        const mainBounds = mainWindow.getBounds()
-        const width = 700
-        const height = 600
-        x = mainBounds.x + Math.floor((mainBounds.width - width) / 2)
-        y = mainBounds.y + Math.floor((mainBounds.height - height) / 2)
-      }
-
-      this.windows.youtubeAccounts = new BrowserWindow({
-        width: 700,
-        height: 600,
-        x: x,
-        y: y,
-        title: 'YouTube Accounts',
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-          preload: this.preloadPath,
-          enableRemoteModule: false,
-          sandbox: false
-        },
-        show: false,
-        resizable: true,
-        minimizable: true,
-        maximizable: true,
-        fullscreenable: false
-      })
-
-      await this.windows.youtubeAccounts.loadFile('src/windows/youtube-accounts.html')
-
-      this.windows.youtubeAccounts.once('ready-to-show', () => {
-        this.windows.youtubeAccounts.show()
-      })
-
-      this.windows.youtubeAccounts.on('closed', () => {
-        this.windows.youtubeAccounts = null
-      })
-
-      return this.windows.youtubeAccounts
+      return null
     } catch (error) {
       return null
     }

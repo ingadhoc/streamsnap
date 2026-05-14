@@ -872,6 +872,14 @@ window.mainUITemplate = `
       </div>
     </div>
 
+    <div id="driveAccountsOverlay" class="hidden fixed inset-0 z-[70] bg-black/60 overflow-y-auto p-4">
+      <div id="driveAccountsOverlayContent" class="min-h-full flex items-center justify-center"></div>
+    </div>
+
+    <div id="youtubeAccountsOverlay" class="hidden fixed inset-0 z-[70] bg-black/60 overflow-y-auto p-4">
+      <div id="youtubeAccountsOverlayContent" class="min-h-full flex items-center justify-center"></div>
+    </div>
+
     <script>window.__isMainWindow = true;</script>
     
     

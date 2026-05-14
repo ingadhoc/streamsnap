@@ -1,11 +1,14 @@
 class DriveAccountsUI {
-  constructor() {
-    this.listEl = document.getElementById('accountsList')
-    this.addBtn = document.getElementById('addAccountBtn')
-    this.template = document.getElementById('accountTemplate')
+  constructor(root = document) {
+    this.root = root
+    this.listEl = this.root.querySelector('#accountsList')
+    this.addBtn = this.root.querySelector('#addAccountBtn')
+    this.template = this.root.querySelector('#accountTemplate')
     this.accounts = []
 
-    this.addBtn.addEventListener('click', () => this.addAccount())
+    if (this.addBtn) {
+      this.addBtn.addEventListener('click', () => this.addAccount())
+    }
 
     this.loadAccounts()
     if (window.electronAPI && window.electronAPI.onDriveAuthUpdated) {
@@ -153,7 +156,7 @@ class DriveAccountsUI {
       this.addBtn.textContent = 'Adding...'
 
       const CANCEL_ID = 'addAccountCancelBtn'
-      let cancelBtn = document.getElementById(CANCEL_ID)
+      let cancelBtn = this.root.querySelector(`#${CANCEL_ID}`)
       let aborted = false
       if (!cancelBtn) {
         cancelBtn = document.createElement('button')
@@ -190,7 +193,7 @@ class DriveAccountsUI {
       this.addBtn.disabled = false
       this.addBtn.textContent = '+ Add account'
       try {
-        const b = document.getElementById('addAccountCancelBtn')
+        const b = this.root.querySelector('#addAccountCancelBtn')
         if (b) b.remove()
       } catch (e) {}
     }
@@ -315,13 +318,35 @@ class DriveAccountsUI {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  window.driveAccountsUI = new DriveAccountsUI()
+function bootstrapDriveAccountsUI() {
+  const root = document.querySelector('[data-drive-accounts-root]') || document
+  if (!root.querySelector('#accountsList')) {
+    return
+  }
 
-  const closeBtn = document.getElementById('closeBtn')
-  if (closeBtn) {
+  if (root.__driveAccountsUI) {
+    root.__driveAccountsUI.loadAccounts().catch(() => {})
+    return
+  }
+
+  root.__driveAccountsUI = new DriveAccountsUI(root)
+  window.driveAccountsUI = root.__driveAccountsUI
+
+  const closeBtn = root.querySelector('#closeBtn')
+  if (closeBtn && !closeBtn._driveAccountsCloseBound) {
+    closeBtn._driveAccountsCloseBound = true
     closeBtn.addEventListener('click', () => {
-      window.close()
+      if (window.__driveAccountsModalMode) {
+        document.getElementById('driveAccountsOverlay')?.classList.add('hidden')
+      } else {
+        window.close()
+      }
     })
   }
-})
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapDriveAccountsUI)
+} else {
+  bootstrapDriveAccountsUI()
+}

@@ -164,6 +164,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     })
   },
 
+  onShowDriveAccounts: callback => {
+    ipcRenderer.on('show-drive-accounts', () => {
+      try {
+        callback()
+      } catch (e) {}
+    })
+  },
+
+  onShowYouTubeAccounts: callback => {
+    ipcRenderer.on('show-youtube-accounts', () => {
+      try {
+        callback()
+      } catch (e) {}
+    })
+  },
+
   onInitVideoEditorOptions: callback => {
     ipcRenderer.on('init-video-editor-options', (event, data) => {
       try {
