@@ -1067,6 +1067,178 @@ class ScreenRecorder {
   showMultiAccountSuccessModal(payload) {}
 }
 
+async function ensureOverlayPage({ overlayId, contentId, rootAttribute, htmlPath, scriptPath, styleId }) {
+  const overlay = document.getElementById(overlayId)
+  const content = document.getElementById(contentId)
+  if (!overlay || !content) {
+    return null
+  }
+
+  if (!window.__overlayPageCache) {
+    window.__overlayPageCache = new Map()
+  }
+
+  const cacheKey = `${overlayId}:${htmlPath}`
+
+  if (!window.__overlayPageCache.has(cacheKey)) {
+    window.__overlayPageCache.set(
+      cacheKey,
+      (async () => {
+        const response = await fetch(htmlPath)
+        if (!response.ok) {
+          throw new Error(`Failed to load overlay template: ${htmlPath}`)
+        }
+
+        const html = await response.text()
+        const doc = new DOMParser().parseFromString(html, 'text/html')
+
+        if (styleId && !document.getElementById(styleId)) {
+          const styleEl = document.createElement('style')
+          styleEl.id = styleId
+          styleEl.textContent = Array.from(doc.querySelectorAll('style'))
+            .map(style => style.textContent || '')
+            .join('\n')
+          document.head.appendChild(styleEl)
+        }
+
+        Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).forEach(link => {
+          const href = link.getAttribute('href')
+          if (!href) return
+
+          const resolvedHref = new URL(href, response.url).toString()
+          if (document.querySelector(`link[data-overlay-href="${resolvedHref}"]`)) {
+            return
+          }
+
+          const linkEl = document.createElement('link')
+          linkEl.rel = 'stylesheet'
+          linkEl.href = resolvedHref
+          linkEl.dataset.overlayHref = resolvedHref
+          document.head.appendChild(linkEl)
+        })
+
+        const bodyClone = doc.body.cloneNode(true)
+        bodyClone.querySelectorAll('script').forEach(script => script.remove())
+
+        content.innerHTML = `<div ${rootAttribute} class="w-full max-w-5xl">${bodyClone.innerHTML}</div>`
+
+        const root = content.querySelector(`[${rootAttribute}]`)
+        const pageShell = root?.querySelector('.page-shell')
+        const heroPanel = root?.querySelector('.hero-panel')
+        const accountsList = root?.querySelector('#accountsList')
+
+        if (root && pageShell) {
+          root.classList.add('overlay-accounts-root')
+          pageShell.classList.add('overlay-accounts-shell')
+        }
+
+        if (heroPanel) {
+          heroPanel.classList.add('overlay-accounts-hero')
+        }
+
+        if (accountsList) {
+          accountsList.classList.add('overlay-accounts-list')
+        }
+
+        const closeBtn = root?.querySelector('#closeBtn')
+        if (closeBtn && !closeBtn.dataset.overlayCloseBound) {
+          closeBtn.addEventListener('click', () => {
+            document.getElementById(overlayId)?.classList.add('hidden')
+          })
+          closeBtn.dataset.overlayCloseBound = 'true'
+        }
+
+        if (!window.__overlayScriptPromises) {
+          window.__overlayScriptPromises = new Map()
+        }
+
+        if (!window.__overlayScriptPromises.has(scriptPath)) {
+          window.__overlayScriptPromises.set(
+            scriptPath,
+            new Promise((resolve, reject) => {
+              const scriptEl = document.createElement('script')
+              scriptEl.src = scriptPath
+              scriptEl.async = false
+              scriptEl.onload = resolve
+              scriptEl.onerror = reject
+              document.body.appendChild(scriptEl)
+            })
+          )
+        }
+
+        await window.__overlayScriptPromises.get(scriptPath)
+
+        return root
+      })()
+    )
+  }
+
+  await window.__overlayPageCache.get(cacheKey)
+  return content.querySelector(`[${rootAttribute}]`)
+}
+
+function ensureAccountsOverlayStyles() {
+  if (document.getElementById('embedded-accounts-overlay-styles')) {
+    return
+  }
+
+  const styleEl = document.createElement('style')
+  styleEl.id = 'embedded-accounts-overlay-styles'
+  styleEl.textContent = `
+    .overlay-accounts-root {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    .overlay-accounts-shell {
+      width: min(100%, 1040px);
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.22);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      gap: 0;
+    }
+
+    .overlay-accounts-hero {
+      background: transparent !important;
+      box-shadow: none !important;
+      border: none !important;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.22) !important;
+      border-radius: 0 !important;
+      padding: 0 0 20px 0 !important;
+      margin-bottom: 18px;
+    }
+
+    .overlay-accounts-list {
+      padding-top: 4px;
+    }
+  `
+  document.head.appendChild(styleEl)
+}
+
+async function openAccountsOverlay({ overlayId, contentId, rootAttribute, htmlPath, scriptPath, styleId, modalFlag }) {
+  window[modalFlag] = true
+  const overlay = document.getElementById(overlayId)
+  if (!overlay) {
+    return
+  }
+
+  ensureAccountsOverlayStyles()
+  await ensureOverlayPage({ overlayId, contentId, rootAttribute, htmlPath, scriptPath, styleId })
+  overlay.classList.remove('hidden')
+
+  if (!overlay.dataset.overlayBound) {
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) {
+        overlay.classList.add('hidden')
+      }
+    })
+    overlay.dataset.overlayBound = 'true'
+  }
+}
+
 function bootstrapScreenRecorder() {
   if (window.screenRecorder) {
     return
@@ -1079,6 +1251,34 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootstrapScreenRecorder)
 } else {
   bootstrapScreenRecorder()
+}
+
+if (window.electronAPI?.onShowDriveAccounts) {
+  window.electronAPI.onShowDriveAccounts(() => {
+    openAccountsOverlay({
+      overlayId: 'driveAccountsOverlay',
+      contentId: 'driveAccountsOverlayContent',
+      rootAttribute: 'data-drive-accounts-root',
+      htmlPath: '../windows/drive-accounts.html',
+      scriptPath: '../js/drive-accounts-renderer.js',
+      styleId: 'drive-accounts-overlay-styles',
+      modalFlag: '__driveAccountsModalMode'
+    }).catch(() => {})
+  })
+}
+
+if (window.electronAPI?.onShowYouTubeAccounts) {
+  window.electronAPI.onShowYouTubeAccounts(() => {
+    openAccountsOverlay({
+      overlayId: 'youtubeAccountsOverlay',
+      contentId: 'youtubeAccountsOverlayContent',
+      rootAttribute: 'data-youtube-accounts-root',
+      htmlPath: '../windows/youtube-accounts.html',
+      scriptPath: '../js/youtube-accounts-renderer.js',
+      styleId: 'youtube-accounts-overlay-styles',
+      modalFlag: '__youtubeAccountsModalMode'
+    }).catch(() => {})
+  })
 }
 
 window.recorderAPI = {
