@@ -12,6 +12,8 @@ class SettingsManager {
       defaultRecordWebcam: false,
       defaultRecordMicrophone: false,
       defaultRecordSystemAudio: false,
+      preferredMicrophoneId: 'default',
+      preferredWebcamId: 'default',
       driveEnabled: false,
       driveAccessToken: '',
       driveFolderId: '',
@@ -55,6 +57,12 @@ class SettingsManager {
       this.settings.drive.folderName = this.settings.driveFolderName
     if (!this.settings.drive.videoPrivacy && this.settings.driveVideoPrivacy)
       this.settings.drive.videoPrivacy = this.settings.driveVideoPrivacy
+    if (typeof this.settings.preferredMicrophoneId !== 'string' || !this.settings.preferredMicrophoneId.trim()) {
+      this.settings.preferredMicrophoneId = 'default'
+    }
+    if (typeof this.settings.preferredWebcamId !== 'string' || !this.settings.preferredWebcamId.trim()) {
+      this.settings.preferredWebcamId = 'default'
+    }
 
     this.updateUI()
     this.syncDefaults()

@@ -1,10 +1,10 @@
 // Main UI Template - injected dynamically for fast startup
 window.mainUITemplate = `
-    <div class="max-w-2xl w-full mx-auto px-6 pt-6 pb-0">
+    <div class="max-w-2xl w-full mx-auto px-6 py-4" style="height:100vh;display:flex;flex-direction:column;">
       <!-- Main Card -->
-      <div class="bg-white rounded-3xl shadow-2xl p-8 backdrop-blur-sm">
+      <div class="bg-white rounded-3xl shadow-2xl p-4 backdrop-blur-sm flex flex-col flex-1 min-h-0">
         <!-- Tab Navigation -->
-        <div class="flex mb-8 border-b border-gray-200">
+        <div class="flex items-center mb-4 border-b border-gray-200">
           <button
             id="recordTab"
             class="tab-button active flex-1 py-3 px-4 text-center font-medium border-b-2 border-blue-500 text-blue-600 transition-colors"
@@ -17,65 +17,74 @@ window.mainUITemplate = `
           >
             ⚙️ Settings
           </button>
+
         </div>
 
         <!-- Record Panel -->
-        <div id="recordPanel" class="tab-panel">
+        <div id="recordPanel" class="tab-panel flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
           <!-- Status -->
-          <div class="text-center mb-8">
-            <div
-              id="recordingStatus"
-              class="inline-flex items-center px-5 py-2 rounded-full text-sm font-medium mb-8 bg-gray-100 text-gray-700"
-            >
-              <div class="w-2 h-2 rounded-full mr-2 bg-gray-400"></div>
+          <div class="flex justify-center">
+            <div id="recordingStatus" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+              <div class="w-1.5 h-1.5 rounded-full mr-1.5 bg-gray-400"></div>
               Ready to record
             </div>
+          </div>
 
-            <div id="conversionProgressContainer" class="hidden w-full max-w-md mx-auto -mt-4 mb-6">
-              <div class="flex items-center justify-end text-xs text-gray-600 mb-1">
-                <span id="conversionProgressPercent">0%</span>
-              </div>
-              <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  id="conversionProgressBar"
-                  class="h-full bg-blue-500 transition-all duration-300 ease-out"
-                  style="width: 0%"
-                ></div>
-              </div>
+          <div id="conversionProgressContainer" class="hidden w-full">
+            <div class="flex items-center justify-end text-xs text-gray-600 mb-1">
+              <span id="conversionProgressPercent">0%</span>
             </div>
-
-            <h2 class="text-2xl font-semibold text-gray-800 mb-2">Start Your Recording</h2>
-            <p class="text-gray-600">Click start to choose what you want to record</p>
+            <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                id="conversionProgressBar"
+                class="h-full bg-blue-500 transition-all duration-300 ease-out"
+                style="width: 0%"
+              ></div>
+            </div>
           </div>
 
           <!-- Audio Options -->
-          <div class="bg-gray-50 rounded-xl p-6 mb-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">🎤 Audio & Webcam</h3>
+          <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 class="text-base font-semibold text-gray-800">Audio & Camera Setup</h3>
+                <p class="text-xs text-gray-500 mt-1">Test devices before recording and pick which one to use by default.</p>
+              </div>
+              <button
+                id="refreshMediaDevicesBtn"
+                class="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
+                type="button"
+              >
+                Refresh
+              </button>
+            </div>
 
-            <div class="grid grid-cols-3 gap-4">
-              <div class="flex flex-col">
-                <div class="flex items-center justify-between mb-2">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <section class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div class="flex items-center justify-between mb-3">
                   <div>
-                    <label class="text-sm font-medium text-gray-700">🎤 Microphone</label>
-                    <p class="text-xs text-gray-500 mt-1">Record from microphone</p>
+                    <label class="text-sm font-semibold text-gray-800">Microphone</label>
+                    <p class="text-xs text-gray-500 mt-1">Voice capture and live level test.</p>
                   </div>
                   <div class="relative">
                     <input type="checkbox" id="recordMicrophone" class="sr-only" />
                     <label for="recordMicrophone" class="flex items-center cursor-pointer">
                       <div class="relative">
                         <div class="toggle-bg w-10 h-6 bg-gray-300 rounded-full shadow-inner transition-colors"></div>
-                        <div
-                          class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"
-                        ></div>
+                        <div class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"></div>
                       </div>
                     </label>
                   </div>
                 </div>
-                <!-- Microphone Test Visualizer -->
-                <div id="micTestContainer" class="hidden mt-2 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <label for="micDeviceSelect" class="block text-xs font-medium text-gray-600 mb-1">Device</label>
+                <select id="micDeviceSelect" class="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white">
+                  <option value="default">System default microphone</option>
+                </select>
+                <p id="micDeviceHint" class="text-xs text-gray-500 mt-1.5">Using system default microphone.</p>
+                <div id="micTestContainer" class="hidden mt-3 p-3 bg-white rounded-lg border border-gray-200">
                   <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-medium text-blue-700">🎙️ Mic Test</span>
-                    <span class="text-xs text-blue-600" id="micStatus">Speak to test...</span>
+                    <span class="text-xs font-medium text-gray-700">Live test</span>
+                    <span class="text-xs text-gray-500" id="micStatus">Speak to test...</span>
                   </div>
                   <div class="flex items-center justify-center h-12 gap-1">
                     <div class="mic-bar" data-bar="0"></div>
@@ -90,80 +99,74 @@ window.mainUITemplate = `
                     <div class="mic-bar" data-bar="9"></div>
                   </div>
                 </div>
-              </div>
+              </section>
 
-              <div class="flex flex-col">
-                <div class="flex items-center justify-between mb-2">
+              <section class="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div class="flex items-center justify-between mb-3">
                   <div>
-                    <label class="text-sm font-medium text-gray-700">🔊 System Audio</label>
-                    <p class="text-xs text-gray-500 mt-1">Record system sounds</p>
-                  </div>
-                  <div class="relative">
-                    <input type="checkbox" id="recordSystemAudio" class="sr-only" />
-                    <label for="recordSystemAudio" class="flex items-center cursor-pointer">
-                      <div class="relative">
-                        <div class="toggle-bg w-10 h-6 bg-gray-300 rounded-full shadow-inner transition-colors"></div>
-                        <div
-                          class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"
-                        ></div>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex flex-col">
-                <div class="flex items-center justify-between mb-2">
-                  <div>
-                    <label class="text-sm font-medium text-gray-700">📷 Webcam</label>
-                    <p class="text-xs text-gray-500 mt-1">Show webcam preview</p>
+                    <label class="text-sm font-semibold text-gray-800">Camera</label>
+                    <p class="text-xs text-gray-500 mt-1">Preview framing and check quality.</p>
                   </div>
                   <div class="relative">
                     <input type="checkbox" id="recordWebcam" class="sr-only" />
                     <label for="recordWebcam" class="flex items-center cursor-pointer">
                       <div class="relative">
                         <div class="toggle-bg w-10 h-6 bg-gray-300 rounded-full shadow-inner transition-colors"></div>
-                        <div
-                          class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"
-                        ></div>
+                        <div class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"></div>
                       </div>
                     </label>
                   </div>
                 </div>
-                <!-- Webcam Preview -->
-                <div id="webcamTestContainer" class="hidden mt-2 p-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                <label for="webcamDeviceSelect" class="block text-xs font-medium text-gray-600 mb-1">Device</label>
+                <select id="webcamDeviceSelect" class="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all bg-white">
+                  <option value="default">System default camera</option>
+                </select>
+                <p id="webcamDeviceHint" class="text-xs text-gray-500 mt-1.5">Using system default camera.</p>
+                <div id="webcamTestContainer" class="hidden mt-3 p-3 bg-white rounded-lg border border-gray-200">
                   <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-medium text-purple-700">📹 Webcam Preview</span>
-                    <span class="text-xs text-purple-600" id="webcamStatus">Loading...</span>
+                    <span class="text-xs font-medium text-gray-700">Live preview</span>
+                    <span class="text-xs text-gray-500" id="webcamStatus">Loading...</span>
                   </div>
                   <div class="relative bg-black rounded-lg overflow-hidden" style="aspect-ratio: 16/9;">
-                    <video 
-                      id="webcamPreview" 
-                      autoplay 
-                      playsinline 
-                      muted
-                      class="w-full h-full object-cover"
-                    ></video>
+                    <video id="webcamPreview" autoplay playsinline muted class="w-full h-full object-cover"></video>
                   </div>
+                </div>
+              </section>
+            </div>
+
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 mt-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-sm font-semibold text-gray-800">System Audio</label>
+                  <p class="text-xs text-gray-500 mt-1">Capture app and desktop sounds.</p>
+                </div>
+                <div class="relative">
+                  <input type="checkbox" id="recordSystemAudio" class="sr-only" />
+                  <label for="recordSystemAudio" class="flex items-center cursor-pointer">
+                    <div class="relative">
+                      <div class="toggle-bg w-10 h-6 bg-gray-300 rounded-full shadow-inner transition-colors"></div>
+                      <div class="toggle-dot absolute w-4 h-4 bg-white rounded-full shadow top-1 left-1 transition-transform"></div>
+                    </div>
+                  </label>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Start Button -->
-          <div class="text-center">
+          <div class="flex justify-center">
             <button
               id="startRecordingBtn"
-              class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-4 px-8 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 inline-flex items-center text-lg"
+              class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-2.5 px-8 rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 inline-flex items-center gap-2 text-sm"
             >
-              <span class="mr-2">▶️</span>
+              <span>▶️</span>
               Start Recording
             </button>
           </div>
         </div>
 
         <!-- Settings Panel -->
-        <div id="settingsPanel" class="tab-panel hidden settings-scrollable">
+        <div id="settingsPanel" class="tab-panel hidden flex-1 min-h-0 overflow-y-auto settings-scrollable">
           <div class="space-y-6">
             <h2 class="text-2xl font-semibold text-gray-800 mb-6">Settings</h2>
 

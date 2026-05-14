@@ -8,9 +8,10 @@ class UIManager {
   }
 
   updateRecordingStatus(text, status = 'ready') {
+    if (!this.statusElement) return
     const dotElement = this.statusElement.querySelector('div')
-    this.statusElement.className = 'inline-flex items-center px-5 py-2 rounded-full text-sm font-medium mb-8 '
-    dotElement.className = 'w-2 h-2 rounded-full mr-2 '
+    this.statusElement.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium '
+    dotElement.className = 'w-1.5 h-1.5 rounded-full mr-1.5 '
 
     if (status === 'recording') {
       this.statusElement.className += 'bg-red-50 text-red-700'
@@ -19,7 +20,7 @@ class UIManager {
       this.statusElement.className += 'bg-green-50 text-green-700'
       dotElement.className += 'bg-green-600'
     } else {
-      this.statusElement.className += 'bg-gray-100 text-gray-700'
+      this.statusElement.className += 'bg-gray-100 text-gray-600'
       dotElement.className += 'bg-gray-400'
     }
 

@@ -9,6 +9,9 @@ class ScreenRecorder {
     this.micAnalyser = null
     this.micAnimationFrame = null
     this.webcamStream = null
+    this.availableAudioInputs = []
+    this.availableVideoInputs = []
+    this._onMediaDeviceChange = null
 
     this.settingsManager.loadSettings()
     this.settingsManager.updateSaveFolderDisplay()
@@ -72,11 +75,11 @@ class ScreenRecorder {
       this.keyboardShortcuts.init()
     }
 
-    // Show mic/webcam tests if already enabled
-    if (this.settingsManager.settings.recordMicrophone) {
+    // Show mic/webcam tests if already enabled (either current session or default)
+    if (this.settingsManager.settings.recordMicrophone || this.settingsManager.settings.defaultRecordMicrophone) {
       this.showMicTest()
     }
-    if (this.settingsManager.settings.recordWebcam) {
+    if (this.settingsManager.settings.recordWebcam || this.settingsManager.settings.defaultRecordWebcam) {
       this.showWebcamTest()
     }
   }
@@ -148,6 +151,11 @@ class ScreenRecorder {
       this.settingsManager.settings.recordMicrophone = e.target.checked
       document.getElementById('recordMicrophone').checked = e.target.checked
       this.settingsManager.saveSettings()
+      if (e.target.checked) {
+        this.showMicTest()
+      } else {
+        this.hideMicTest()
+      }
     })
 
     document.getElementById('defaultRecordSystemAudio').addEventListener('change', e => {
@@ -163,7 +171,205 @@ class ScreenRecorder {
       const recWebcamEl = document.getElementById('recordWebcam')
       if (recWebcamEl) recWebcamEl.checked = e.target.checked
       this.settingsManager.saveSettings()
+      if (e.target.checked) {
+        this.showWebcamTest()
+      } else {
+        this.hideWebcamTest()
+      }
     })
+
+    this.initializeMediaDeviceControls()
+  }
+
+  async initializeMediaDeviceControls() {
+    const micSelect = document.getElementById('micDeviceSelect')
+    const webcamSelect = document.getElementById('webcamDeviceSelect')
+    const refreshBtn = document.getElementById('refreshMediaDevicesBtn')
+
+    if (micSelect && !micSelect.dataset.bound) {
+      micSelect.dataset.bound = 'true'
+      micSelect.addEventListener('change', async e => {
+        this.settingsManager.settings.preferredMicrophoneId = e.target.value || 'default'
+        this.settingsManager.saveSettings()
+        this.updateDeviceHints()
+
+        if (this.settingsManager.settings.recordMicrophone) {
+          await this.showMicTest(true)
+        }
+      })
+    }
+
+    if (webcamSelect && !webcamSelect.dataset.bound) {
+      webcamSelect.dataset.bound = 'true'
+      webcamSelect.addEventListener('change', async e => {
+        this.settingsManager.settings.preferredWebcamId = e.target.value || 'default'
+        this.settingsManager.saveSettings()
+        this.updateDeviceHints()
+
+        if (this.settingsManager.settings.recordWebcam) {
+          await this.showWebcamTest(true)
+        }
+      })
+    }
+
+    if (refreshBtn && !refreshBtn.dataset.bound) {
+      refreshBtn.dataset.bound = 'true'
+      refreshBtn.addEventListener('click', async () => {
+        await this.refreshMediaDevices({ requestPermission: true })
+      })
+    }
+
+    if (!this._onMediaDeviceChange && navigator.mediaDevices?.addEventListener) {
+      this._onMediaDeviceChange = () => {
+        this.refreshMediaDevices({ requestPermission: false })
+      }
+      navigator.mediaDevices.addEventListener('devicechange', this._onMediaDeviceChange)
+    }
+
+    await this.refreshMediaDevices({ requestPermission: false })
+  }
+
+  async refreshMediaDevices({ requestPermission = false } = {}) {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      return
+    }
+
+    if (requestPermission) {
+      await this.warmMediaPermissions()
+    }
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      this.availableAudioInputs = devices.filter(device => {
+        if (device.kind !== 'audioinput') return false
+        const id = String(device.deviceId || '').toLowerCase()
+        return id !== 'default' && id !== 'communications'
+      })
+      this.availableVideoInputs = devices.filter(device => {
+        if (device.kind !== 'videoinput') return false
+        const id = String(device.deviceId || '').toLowerCase()
+        return id !== 'default'
+      })
+
+      this.populateDeviceSelect(
+        'micDeviceSelect',
+        this.availableAudioInputs,
+        this.settingsManager.settings.preferredMicrophoneId,
+        'System default microphone',
+        'No microphones found'
+      )
+      this.populateDeviceSelect(
+        'webcamDeviceSelect',
+        this.availableVideoInputs,
+        this.settingsManager.settings.preferredWebcamId,
+        'System default camera',
+        'No webcams found'
+      )
+      this.updateDeviceHints()
+    } catch (error) {}
+  }
+
+  populateDeviceSelect(selectId, devices, preferredId, defaultLabel, emptyLabel) {
+    const select = document.getElementById(selectId)
+    if (!select) return
+
+    const selectedBefore = preferredId || select.value || 'default'
+    const hasDefaultOption = devices.length > 0
+    const defaultOption = `<option value="default">${defaultLabel}</option>`
+    const deviceOptions = devices
+      .map((device, index) => {
+        const fallbackName = `${defaultLabel.replace('System default ', '')} ${index + 1}`
+        const label = (device.label || fallbackName).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        return `<option value="${device.deviceId}">${label}</option>`
+      })
+      .join('')
+
+    select.innerHTML = hasDefaultOption ? `${defaultOption}${deviceOptions}` : `<option value="default">${emptyLabel}</option>`
+    select.disabled = !hasDefaultOption
+
+    const hasPreferred = selectedBefore === 'default' || devices.some(device => device.deviceId === selectedBefore)
+    const nextValue = hasPreferred ? selectedBefore : 'default'
+    select.value = nextValue
+
+    if (selectId === 'micDeviceSelect') {
+      this.settingsManager.settings.preferredMicrophoneId = nextValue
+    } else if (selectId === 'webcamDeviceSelect') {
+      this.settingsManager.settings.preferredWebcamId = nextValue
+    }
+
+    this.settingsManager.saveSettings()
+  }
+
+  updateDeviceHints() {
+    const micHint = document.getElementById('micDeviceHint')
+    const webcamHint = document.getElementById('webcamDeviceHint')
+    const micSelect = document.getElementById('micDeviceSelect')
+    const webcamSelect = document.getElementById('webcamDeviceSelect')
+
+    if (micHint && micSelect) {
+      const label = micSelect.options[micSelect.selectedIndex]?.text || 'System default microphone'
+      micHint.textContent = `Default: ${label}`
+    }
+
+    if (webcamHint && webcamSelect) {
+      const label = webcamSelect.options[webcamSelect.selectedIndex]?.text || 'System default camera'
+      webcamHint.textContent = `Default: ${label}`
+    }
+  }
+
+  async warmMediaPermissions() {
+    const tracks = []
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      tracks.push(...stream.getTracks())
+    } catch (error) {
+      try {
+        const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true })
+        tracks.push(...audioOnly.getTracks())
+      } catch (audioErr) {}
+
+      try {
+        const videoOnly = await navigator.mediaDevices.getUserMedia({ video: true })
+        tracks.push(...videoOnly.getTracks())
+      } catch (videoErr) {}
+    }
+
+    tracks.forEach(track => {
+      try {
+        track.stop()
+      } catch (e) {}
+    })
+  }
+
+  getPreferredMicrophoneConstraints() {
+    const preferredMic = this.settingsManager.settings.preferredMicrophoneId || 'default'
+    const constraints = {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: false,
+      sampleRate: 44100
+    }
+
+    if (preferredMic && preferredMic !== 'default') {
+      constraints.deviceId = { exact: preferredMic }
+    }
+
+    return constraints
+  }
+
+  getPreferredWebcamConstraints() {
+    const preferredCam = this.settingsManager.settings.preferredWebcamId || 'default'
+    const constraints = {
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      facingMode: 'user'
+    }
+
+    if (preferredCam && preferredCam !== 'default') {
+      constraints.deviceId = { exact: preferredCam }
+    }
+
+    return constraints
   }
 
   setupCountdownControls() {
@@ -588,7 +794,7 @@ class ScreenRecorder {
       })
 
       try {
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio: this.getPreferredMicrophoneConstraints() })
         const AudioContextClass = window.AudioContext || window.webkitAudioContext
         if (!AudioContextClass) {
           return new MediaStream([...videoStream.getVideoTracks(), ...micStream.getAudioTracks()])
@@ -640,7 +846,7 @@ class ScreenRecorder {
     })
 
     try {
-      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: this.getPreferredMicrophoneConstraints() })
       return this.mixAudioStreams(displayStream, micStream)
     } catch (micError) {
       alert('Microphone access denied. Recording with system audio only.')
@@ -662,7 +868,7 @@ class ScreenRecorder {
     }
 
     try {
-      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: this.getPreferredMicrophoneConstraints() })
 
       if (wantsSystemAudio && displayStream.getAudioTracks().length) {
         return this.mixAudioStreams(displayStream, micStream)
@@ -919,20 +1125,20 @@ class ScreenRecorder {
     alert(`${errorMessage}\n\nDetails: ${error.message}`)
   }
 
-  async showMicTest() {
+  async showMicTest(forceRestart = false) {
     const container = document.getElementById('micTestContainer')
     if (!container) return
+
+    if (forceRestart) {
+      this.hideMicTest()
+    }
     
     container.classList.remove('hidden')
     
     try {
       // Request microphone access
       this.micStream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: false
-        } 
+        audio: this.getPreferredMicrophoneConstraints()
       })
       
       // Set up audio analysis
@@ -947,9 +1153,12 @@ class ScreenRecorder {
       this.animateMicBars()
       
       document.getElementById('micStatus').textContent = '✓ Working'
+      document.getElementById('micStatus').classList.remove('text-blue-600', 'text-sky-600', 'text-red-600', 'text-gray-500')
       document.getElementById('micStatus').classList.add('text-green-600')
+      this.refreshMediaDevices({ requestPermission: false })
     } catch (error) {
       document.getElementById('micStatus').textContent = '✗ Error'
+      document.getElementById('micStatus').classList.remove('text-blue-600', 'text-sky-600', 'text-green-600', 'text-gray-500')
       document.getElementById('micStatus').classList.add('text-red-600')
       console.error('Microphone access error:', error)
     }
@@ -974,6 +1183,12 @@ class ScreenRecorder {
     }
     
     this.micAnalyser = null
+    const status = document.getElementById('micStatus')
+    if (status) {
+      status.textContent = 'Speak to test...'
+      status.classList.remove('text-green-600', 'text-red-600', 'text-blue-600', 'text-sky-600', 'text-violet-600', 'text-purple-600')
+      status.classList.add('text-gray-500')
+    }
   }
 
   animateMicBars() {
@@ -1013,33 +1228,36 @@ class ScreenRecorder {
     animate()
   }
 
-  async showWebcamTest() {
+  async showWebcamTest(forceRestart = false) {
     const container = document.getElementById('webcamTestContainer')
     const video = document.getElementById('webcamPreview')
     const status = document.getElementById('webcamStatus')
     
     if (!container || !video) return
     
+    if (forceRestart) {
+      this.hideWebcamTest()
+    }
+
     container.classList.remove('hidden')
     
     try {
       // Request webcam access
       this.webcamStream = await navigator.mediaDevices.getUserMedia({ 
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        }
+        video: this.getPreferredWebcamConstraints()
       })
       
       video.srcObject = this.webcamStream
       
       status.textContent = '✓ Working'
-      status.classList.remove('text-purple-600')
+      status.classList.remove('text-purple-600', 'text-violet-600', 'text-gray-500')
+      status.classList.remove('text-red-600')
       status.classList.add('text-green-600')
+      this.refreshMediaDevices({ requestPermission: false })
     } catch (error) {
       status.textContent = '✗ Error'
-      status.classList.remove('text-purple-600')
+      status.classList.remove('text-purple-600', 'text-violet-600', 'text-gray-500')
+      status.classList.remove('text-green-600')
       status.classList.add('text-red-600')
       console.error('Webcam access error:', error)
     }
@@ -1061,6 +1279,13 @@ class ScreenRecorder {
     
     if (video) {
       video.srcObject = null
+    }
+
+    const status = document.getElementById('webcamStatus')
+    if (status) {
+      status.textContent = 'Loading...'
+      status.classList.remove('text-green-600', 'text-red-600', 'text-purple-600', 'text-violet-600', 'text-sky-600', 'text-blue-600')
+      status.classList.add('text-gray-500')
     }
   }
 

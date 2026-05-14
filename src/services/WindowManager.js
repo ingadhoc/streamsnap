@@ -612,7 +612,11 @@ class WindowManager {
         show: false
       })
 
-      await this.windows.webcam.loadFile('src/windows/webcam-preview.html')
+      await this.windows.webcam.loadFile('src/windows/webcam-preview.html', {
+        query: {
+          webcamDeviceId: String(options?.deviceId || 'default')
+        }
+      })
 
       try {
         this.windows.webcam.setAlwaysOnTop(true, 'screen-saver')
