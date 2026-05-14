@@ -522,6 +522,7 @@ class WindowManager {
       const width = options.width || WINDOW_CONFIG.webcam.defaultWidth
       const height = options.height || WINDOW_CONFIG.webcam.defaultHeight
       const gap = 12
+      const preferredDisplay = options?.display || null
 
       let x = undefined
       let y = undefined
@@ -529,20 +530,34 @@ class WindowManager {
       if (anchorWindow && !anchorWindow.isDestroyed()) {
         try {
           const bounds = anchorWindow.getBounds()
-          const disp = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay()
-          const work = disp.workArea || disp.bounds || {}
+          const anchorDisplay = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay()
+          const targetDisplay = preferredDisplay || anchorDisplay || screen.getPrimaryDisplay()
+          const work = targetDisplay.workArea || targetDisplay.bounds || {}
           const originX = typeof work.x === 'number' ? work.x : 0
-          const screenW = work.width || disp.workAreaSize?.width || screen.getPrimaryDisplay().workAreaSize.width
+          const originY = typeof work.y === 'number' ? work.y : 0
+          const screenW = work.width || targetDisplay.workAreaSize?.width || screen.getPrimaryDisplay().workAreaSize.width
+          const screenH = work.height || targetDisplay.workAreaSize?.height || screen.getPrimaryDisplay().workAreaSize.height
+          const sameDisplay = String(anchorDisplay?.id) === String(targetDisplay?.id)
 
           if (options?.alignSides) {
             const marginRight = Number(options?.marginRight) || WINDOW_CONFIG.webcam.margins.right
             x = Math.max(originX + 10, originX + screenW - width - marginRight)
             const verticalCompensation = Number(options?.alignOffset ?? 0)
-            y = bounds.y + bounds.height - height - verticalCompensation
+            if (sameDisplay) {
+              y = bounds.y + bounds.height - height - verticalCompensation
+            } else {
+              const marginBottom = Number(options?.marginBottom) || WINDOW_CONFIG.webcam.margins.bottom
+              y = Math.max(originY + 10, originY + screenH - height - marginBottom)
+            }
           } else {
-            x = bounds.x + bounds.width + gap
+            x = sameDisplay ? bounds.x + bounds.width + gap : Math.max(originX + 10, originX + gap)
             const verticalCompensation = Number(options?.alignOffset ?? 0)
-            y = bounds.y + bounds.height - height - verticalCompensation
+            if (sameDisplay) {
+              y = bounds.y + bounds.height - height - verticalCompensation
+            } else {
+              const marginBottom = Number(options?.marginBottom) || WINDOW_CONFIG.webcam.margins.bottom
+              y = Math.max(originY + 10, originY + screenH - height - marginBottom)
+            }
           }
 
           try {
