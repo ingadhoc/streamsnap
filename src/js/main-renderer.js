@@ -1067,9 +1067,19 @@ class ScreenRecorder {
   showMultiAccountSuccessModal(payload) {}
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function bootstrapScreenRecorder() {
+  if (window.screenRecorder) {
+    return
+  }
+
   window.screenRecorder = new ScreenRecorder()
-})
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrapScreenRecorder)
+} else {
+  bootstrapScreenRecorder()
+}
 
 window.recorderAPI = {
   pause: () => window.screenRecorder?.pauseRecording(),

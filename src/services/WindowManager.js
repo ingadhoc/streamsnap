@@ -19,6 +19,8 @@ class WindowManager {
 
     this.preloadPath = path.join(__dirname, '../preload.js')
     this.driveUploadResult = null
+    this.mainWindowHasBeenShown = false
+    this.mainWindowStartMinimized = false
   }
 
   async createCountdownWindow(options = {}) {
@@ -93,6 +95,9 @@ class WindowManager {
 
   async createMainWindow(startMinimized = false) {
     try {
+      this.mainWindowHasBeenShown = false
+      this.mainWindowStartMinimized = startMinimized
+
       this.windows.main = new BrowserWindow({
         ...WINDOW_CONFIG.main,
         title: environment.app.name,
@@ -109,16 +114,10 @@ class WindowManager {
 
       await this.windows.main.loadFile('src/windows/main.html')
 
-      this.windows.main.once('ready-to-show', () => {
-        if (startMinimized) {
-          this.windows.main.minimize()
-        } else {
-          this.windows.main.show()
-        }
-      })
-
       this.windows.main.on('closed', () => {
         this.windows.main = null
+        this.mainWindowHasBeenShown = false
+        this.mainWindowStartMinimized = false
       })
 
       return this.windows.main
@@ -653,11 +652,29 @@ class WindowManager {
 
   showMainWindow(focus = true) {
     if (this.windows.main && !this.windows.main.isDestroyed()) {
+      if (!this.mainWindowHasBeenShown) {
+        this.mainWindowHasBeenShown = true
+
+        this.windows.main.show()
+
+        if (this.mainWindowStartMinimized) {
+          this.windows.main.minimize()
+          return
+        }
+      }
+
       if (focus) {
+        if (this.windows.main.isMinimized()) {
+          this.windows.main.restore()
+        }
         this.windows.main.show()
         this.windows.main.focus()
       } else {
-        this.windows.main.showInactive()
+        if (typeof this.windows.main.showInactive === 'function') {
+          this.windows.main.showInactive()
+        } else {
+          this.windows.main.show()
+        }
       }
     }
   }
