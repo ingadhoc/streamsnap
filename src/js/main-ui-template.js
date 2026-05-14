@@ -1,16 +1,6 @@
 // Main UI Template - injected dynamically for fast startup
 window.mainUITemplate = `
     <div class="max-w-2xl w-full mx-auto px-6 pt-6 pb-0">
-      <!-- Header -->
-      <div class="text-center mb-5">
-        <div class="w-20 h-20 mx-auto mb-4 drop-shadow-xl hover:scale-105 transition-transform duration-300">
-          <img src="../icon.png" alt="StreamSnap Logo" class="w-full h-full object-contain" />
-        </div>
-        <h1 class="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-3">
-          StreamSnap
-        </h1>
-      </div>
-
       <!-- Main Card -->
       <div class="bg-white rounded-3xl shadow-2xl p-8 backdrop-blur-sm">
         <!-- Tab Navigation -->

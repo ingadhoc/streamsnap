@@ -114,6 +114,10 @@ class WindowManager {
 
       await this.windows.main.loadFile('src/windows/main.html')
 
+      try {
+        this.windows.main.setIcon(this.getAppIcon())
+      } catch (e) {}
+
       this.windows.main.on('closed', () => {
         this.windows.main = null
         this.mainWindowHasBeenShown = false
