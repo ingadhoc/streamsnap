@@ -52,12 +52,15 @@ class RecordingManager {
         if (!seenIds.has(source.id)) {
           seenIds.add(source.id)
 
+          const sourceName = typeof source.name === 'string' ? source.name.trim() : ''
           const isOwnWindow =
-            source.name.includes('StreamSnap') ||
-            source.name.includes('Select Recording Source') ||
-            source.name.includes('streamsnap') ||
-            source.name.includes('Save Recording') ||
-            source.name.includes('Video Editor')
+            sourceName === 'StreamSnap - Screen Recorder' ||
+            sourceName === 'Select Source - StreamSnap' ||
+            sourceName === 'Save Recording' ||
+            sourceName === 'Video Editor' ||
+            sourceName === 'Recording Controls' ||
+            sourceName === 'Webcam Preview' ||
+            sourceName === 'Countdown'
 
           if (!isOwnWindow) {
             uniqueSources.push(source)
