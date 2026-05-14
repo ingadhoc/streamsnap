@@ -1,10 +1,14 @@
 const { app, session } = require('electron')
-const environment = require('./src/config/environment')
 
 // Enable PipeWire screen-capture support on Linux/Wayland before the app is ready.
 if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('disable-software-rasterizer')
   app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
+  app.disableHardwareAcceleration()
 }
+
+const environment = require('./src/config/environment')
 
 const WindowManager = require('./src/services/WindowManager')
 const RecordingManager = require('./src/services/RecordingManager')
@@ -116,7 +120,12 @@ class StreamSnapApp {
         } catch (e) {}
       }
 
-      const isHiddenLaunch = app.getLoginItemSettings().wasOpenedAsHidden || process.argv.includes('--hidden')
+      let isHiddenLaunch = false
+      try {
+        isHiddenLaunch = (process.platform === 'darwin' && app.getLoginItemSettings().wasOpenedAsHidden) || process.argv.includes('--hidden')
+      } catch (e) {
+        isHiddenLaunch = process.argv.includes('--hidden')
+      }
       await this.windowManager.createMainWindow(isHiddenLaunch)
       this.isInitialized = true
 
