@@ -629,6 +629,7 @@ class RecordingHandlers {
           width: settings?.webcamWidth || settings?.webcamPreviewWidth || 320,
           height: settings?.webcamHeight || settings?.webcamPreviewHeight || 180,
           movableControls: settings?.movableControls || false,
+          deviceId: settings?.preferredWebcamId || 'default',
           display: targetDisplay,
           alignSides: true,
           marginBottom: Number(settings?.webcamMarginBottom || 40)

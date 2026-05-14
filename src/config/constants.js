@@ -12,8 +12,8 @@ const OAUTH_CONFIG = {
 const WINDOW_CONFIG = {
   main: {
     width: 800,
-    height: 840,
-    minHeight: 840,
+    height: 650,
+    minHeight: 600,
     resizable: true
   },
   floating: {

@@ -1,11 +1,28 @@
 let _stream = null
 
+function getPreferredWebcamDeviceId() {
+  try {
+    const params = new URLSearchParams(window.location.search || '')
+    const value = (params.get('webcamDeviceId') || 'default').trim()
+    return value || 'default'
+  } catch (e) {
+    return 'default'
+  }
+}
+
 async function startWebcamPreview() {
   try {
     const videoEl = document.getElementById('webcamVideo')
     if (!videoEl) return
 
-    const constraints = { video: { width: { ideal: 320 }, height: { ideal: 180 } }, audio: false }
+    const preferredDeviceId = getPreferredWebcamDeviceId()
+
+    const videoConstraints = { width: { ideal: 320 }, height: { ideal: 180 } }
+    if (preferredDeviceId !== 'default') {
+      videoConstraints.deviceId = { exact: preferredDeviceId }
+    }
+
+    const constraints = { video: videoConstraints, audio: false }
 
     _stream = await navigator.mediaDevices.getUserMedia(constraints)
     try {
