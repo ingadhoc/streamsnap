@@ -172,12 +172,17 @@ class WindowHandlers {
 
     ipcMain.handle('set-launch-on-startup', (event, enabled) => {
       try {
-        electronApp.setLoginItemSettings({
-          openAtLogin: enabled,
-          path: electronApp.getPath('exe'),
-          openAsHidden: true,
-          args: ['--hidden']
-        })
+        if (process.platform === 'darwin') {
+          electronApp.setLoginItemSettings({
+            openAtLogin: enabled,
+            openAsHidden: true,
+            args: ['--hidden']
+          })
+        } else {
+          electronApp.setLoginItemSettings({
+            openAtLogin: enabled
+          })
+        }
         return { success: true }
       } catch (error) {
         return { success: false, error: error.message }
