@@ -138,17 +138,24 @@ class DriveAccountManager {
         return { success: false, shouldRemove: true, error: 'No refresh token available' }
       }
 
-      const refreshed = await this.refreshTokenForAccount(accountId, tokens.refreshToken)
-
-      if (refreshed) {
-        await this.updateAccount(accountId, { needsReauth: false })
-
-        return { success: true, shouldRemove: false, refreshed: true }
-      } else {
-        return { success: false, shouldRemove: true, error: 'Token refresh failed' }
+      try {
+        const refreshed = await this.refreshTokenForAccount(accountId, tokens.refreshToken)
+        if (refreshed) {
+          await this.updateAccount(accountId, { needsReauth: false })
+          return { success: true, shouldRemove: false, refreshed: true }
+        }
+        // refreshed === false means a network error; tokens are intact, don't remove the account.
+        return { success: false, shouldRemove: false, error: 'Network error during token refresh' }
+      } catch (err) {
+        if (err.isAuthError) {
+          // Google explicitly rejected the token (e.g. invalid_grant) — mark for manual reauth.
+          await this.markNeedsReauth(accountId, true)
+          return { success: false, shouldRemove: false, needsReauth: true, error: err.message }
+        }
+        return { success: false, shouldRemove: false, error: err.message }
       }
     } catch (err) {
-      return { success: false, shouldRemove: true, error: err.message }
+      return { success: false, shouldRemove: false, error: err.message }
     }
   }
 
@@ -382,7 +389,11 @@ class DriveAccountManager {
 
       if (!response.ok) {
         const errorText = await response.text()
-        return false
+        // Google explicitly rejected the token — flag it as an auth error so callers
+        // can distinguish it from a transient network failure.
+        const err = new Error(`Token refresh failed: ${response.status} - ${errorText}`)
+        err.isAuthError = true
+        throw err
       }
 
       const tokenData = await response.json()
@@ -393,10 +404,11 @@ class DriveAccountManager {
         tokenExpiry: Date.now() + tokenData.expires_in * 1000
       }
 
-      const saved = await this.saveTokensForAccount(accountId, newTokenObj)
-      return saved
+      await this.saveTokensForAccount(accountId, newTokenObj)
+      return true
     } catch (err) {
-      return false
+      if (err.isAuthError) throw err  // re-throw so handleAuthError can act on it
+      return false                     // network/unexpected error: tokens remain intact
     }
   }
 

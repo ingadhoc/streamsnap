@@ -680,7 +680,9 @@ class DriveService {
         this.setTokens(tokenData, accountId)
         return true
       } catch (error) {
-        this.signOut(accountId)
+        // Don't call signOut() here: a transient network error (e.g. after suspend/resume)
+        // would permanently delete valid tokens. handleAuthError in DriveAccountManager
+        // decides whether the token is genuinely invalid based on Google's response.
         return false
       }
     }
