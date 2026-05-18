@@ -1240,7 +1240,6 @@ class ScreenRecorder {
     }
 
     container.classList.remove('hidden')
-    window.electronAPI?.setMainWindowHeight?.(870).catch?.(() => {})
 
     try {
       // Request webcam access
@@ -1271,7 +1270,6 @@ class ScreenRecorder {
     if (container) {
       container.classList.add('hidden')
     }
-    window.electronAPI?.setMainWindowHeight?.(720).catch?.(() => {})
 
     // Stop webcam stream
     if (this.webcamStream) {
