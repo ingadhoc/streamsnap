@@ -166,8 +166,7 @@
     "linux": {
       "target": [
         "AppImage",
-        "deb",
-        "rpm"
+        "deb"
       ],
       "icon": "src/icon.png",
       "category": "AudioVideo",
