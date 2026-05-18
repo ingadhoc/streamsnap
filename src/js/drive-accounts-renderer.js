@@ -128,6 +128,9 @@ class DriveAccountsUI {
             defaultFolderName: selected.name
           })
           this.showSuccess('Default folder saved')
+          if (window.electronAPI && window.electronAPI.sendDriveAccountsChanged) {
+            window.electronAPI.sendDriveAccountsChanged()
+          }
           this.loadAccounts()
         }
       } catch (e) {
@@ -141,6 +144,9 @@ class DriveAccountsUI {
       try {
         await window.electronAPI.driveAccountsRemove(acc.id)
         this.showSuccess('Account removed')
+        if (window.electronAPI && window.electronAPI.sendDriveAccountsChanged) {
+          window.electronAPI.sendDriveAccountsChanged()
+        }
         this.loadAccounts()
       } catch (e) {
         this.showError('Failed to remove account')
@@ -183,6 +189,9 @@ class DriveAccountsUI {
 
       if (res && res.success) {
         this.showSuccess('Account added')
+        if (window.electronAPI && window.electronAPI.sendDriveAccountsChanged) {
+          window.electronAPI.sendDriveAccountsChanged()
+        }
         this.loadAccounts()
       } else {
         this.showError(res && res.error ? res.error : 'Failed to add account')
@@ -206,20 +215,20 @@ class DriveAccountsUI {
 
       return await new Promise(resolve => {
         const modal = document.createElement('div')
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center'
+        modal.style.zIndex = '99999'
         modal.innerHTML = `
           <div class="bg-white rounded-lg p-4 w-full max-w-lg mx-4">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-lg font-semibold">Select Drive Folder</h3>
-              <div>
-                <input id="folderSearch" placeholder="Search..." class="px-3 py-2 border rounded mr-2" />
-                <button id="cancelBtn" class="px-3 py-2">Cancel</button>
-              </div>
+              <button id="cancelBtn" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium border border-gray-300 transition-colors cursor-pointer">Cancel</button>
             </div>
+            <input id="folderSearch" placeholder="Search..." class="w-full px-3 py-2 border rounded mb-3" />
             <div class="max-h-64 overflow-y-auto border rounded p-2" id="folderList"></div>
           </div>
         `
-        document.body.appendChild(modal)
+        const mountTarget = document.getElementById('driveAccountsOverlay') || document.body
+        mountTarget.appendChild(modal)
         const folderList = modal.querySelector('#folderList')
         const cancelBtn = modal.querySelector('#cancelBtn')
         const searchInput = modal.querySelector('#folderSearch')

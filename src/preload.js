@@ -242,5 +242,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onShortcutDiscard: callback => ipcRenderer.on('shortcut-discard', callback),
 
   onStartCountdown: callback => ipcRenderer.on('start-countdown', (event, duration) => callback(duration)),
-  onStopCountdown: callback => ipcRenderer.on('stop-countdown', callback)
+  onStopCountdown: callback => ipcRenderer.on('stop-countdown', callback),
+
+  sendDriveAccountsChanged: () => {
+    try {
+      ipcRenderer.send('drive-accounts-changed')
+    } catch (e) {}
+  }
 })
