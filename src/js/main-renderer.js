@@ -1250,15 +1250,11 @@ class ScreenRecorder {
       video.srcObject = this.webcamStream
       
       status.textContent = '✓ Working'
-      status.classList.remove('text-purple-600', 'text-violet-600', 'text-gray-500')
-      status.classList.remove('text-red-600')
-      status.classList.add('text-green-600')
+      status.style.color = '#22c55e'
       this.refreshMediaDevices({ requestPermission: false })
     } catch (error) {
       status.textContent = '✗ Error'
-      status.classList.remove('text-purple-600', 'text-violet-600', 'text-gray-500')
-      status.classList.remove('text-green-600')
-      status.classList.add('text-red-600')
+      status.style.color = '#ef4444'
       console.error('Webcam access error:', error)
     }
   }
@@ -1284,8 +1280,7 @@ class ScreenRecorder {
     const status = document.getElementById('webcamStatus')
     if (status) {
       status.textContent = 'Loading...'
-      status.classList.remove('text-green-600', 'text-red-600', 'text-purple-600', 'text-violet-600', 'text-sky-600', 'text-blue-600')
-      status.classList.add('text-gray-500')
+      status.style.color = ''
     }
   }
 
