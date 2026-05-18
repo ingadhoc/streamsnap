@@ -188,8 +188,10 @@
       "synopsis": "Professional screen recording application",
       "description": "StreamSnap is a professional screen recording application built with Electron, featuring Google Drive integration and advanced recording capabilities."
     },
+    "deb": {
+      "afterInstall": "scripts/after-install.sh"
+    },
     "nsis": {
-      "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
