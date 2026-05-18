@@ -158,7 +158,19 @@ class WindowHandlers {
       }
     })
 
-    ipcMain.handle('open-youtube-accounts', async () => {
+    ipcMain.handle('set-main-window-height', (_event, height) => {
+      try {
+        const win = this.app.windowManager.getWindow('main')
+        if (win && !win.isDestroyed()) {
+          const [w] = win.getSize()
+          win.setSize(w, Math.max(660, Math.min(1200, height)))
+        }
+        return { success: true }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
+
       try {
         const win = await this.app.windowManager.createYouTubeAccountsWindow()
         if (!win) {
