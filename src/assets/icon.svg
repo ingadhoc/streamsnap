@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- Gradiente principal para el borde de la "cámara" (Tonos Azules) -->
+    <linearGradient id="brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1D4ED8"/> <!-- Blue 700 -->
+      <stop offset="50%" stop-color="#3B82F6"/> <!-- Blue 500 -->
+      <stop offset="100%" stop-color="#0EA5E9"/> <!-- Sky 500 -->
+    </linearGradient>
+    
+    <!-- Gradiente para el aro de lente y ondas (Celeste Brillante) -->
+    <linearGradient id="accent-grad" x1="20%" y1="20%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/> <!-- Sky 400 -->
+      <stop offset="100%" stop-color="#7DD3FC"/> <!-- Sky 300 -->
+    </linearGradient>
+
+    <!-- Gradiente para el botón central de grabación / play (Más celeste brillante y blanco) -->
+    <linearGradient id="center-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BAE6FD"/> <!-- Sky 200 -->
+      <stop offset="100%" stop-color="#0284C7"/> <!-- Sky 600 -->
+    </linearGradient>
+    
+    <!-- Indicador pequeño de grabación (Mantiene rojo clásico pero sutil) -->
+    <radialGradient id="record-dot" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#B91C1C"/>
+    </radialGradient>
+
+    <!-- Sombra suave para darle volumen -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#0F172A" flood-opacity="0.35"/>
+    </filter>
+    
+    <filter id="inner-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0284C7" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Marco estilo cámara / pantalla moderno con gradiente azul -->
+  <rect x="56" y="96" width="400" height="320" rx="64" fill="#FFFFFF" stroke="url(#brand-grad)" stroke-width="32" filter="url(#shadow)"/>
+  
+  <!-- Detalle superior de la cámara (Flash o indicador de encendido, ahora sutil) -->
+  <circle cx="380" cy="150" r="14" fill="url(#record-dot)" filter="url(#shadow)"/>
+
+  <!-- Anillo exterior del lente -->
+  <circle cx="256" cy="256" r="100" stroke="url(#accent-grad)" stroke-width="12" opacity="0.9"/>
+  
+  <!-- Fondo interior del lente -->
+  <circle cx="256" cy="256" r="80" fill="url(#center-grad)" filter="url(#inner-shadow)"/>
+  
+  <!-- Símbolo de "Play" moderno en el centro -->
+  <path d="M 235 220 L 295 256 L 235 292 Z" fill="#FFFFFF" filter="url(#shadow)"/>
+
+  <!-- Ondas sutiles laterales (referencia a Stream / Transmisión en celeste) -->
+  <path d="M 120 220 A 50 50 0 0 0 120 292" stroke="url(#accent-grad)" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.9"/>
+  <path d="M 90 200 A 75 75 0 0 0 90 312" stroke="url(#brand-grad)" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.5"/>
+  
+  <path d="M 392 220 A 50 50 0 0 1 392 292" stroke="url(#accent-grad)" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.9"/>
+  <path d="M 422 200 A 75 75 0 0 1 422 312" stroke="url(#brand-grad)" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.5"/>
+</svg>

@@ -1,8 +1,8 @@
 #!/bin/bash
 # Install icon at standard hicolor sizes so Ubuntu/GNOME finds it
-SRC="/usr/share/icons/hicolor/1024x1024/apps/streamsnap.png"
+SRC="/usr/share/icons/hicolor/512x512/apps/streamsnap.png"
 
-for SIZE in 512 256 128 48; do
+for SIZE in 256 128 48; do
   DIR="/usr/share/icons/hicolor/$SIZE"x"$SIZE/apps"
   mkdir -p "$DIR"
   if command -v convert >/dev/null 2>&1; then
