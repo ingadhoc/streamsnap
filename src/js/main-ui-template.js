@@ -127,7 +127,7 @@ window.mainUITemplate = `
                     <span class="text-xs font-medium text-gray-700">Live preview</span>
                     <span class="text-xs text-gray-500" id="webcamStatus">Loading...</span>
                   </div>
-                  <div class="relative bg-black rounded-lg overflow-hidden" style="aspect-ratio: 16/9;">
+                  <div class="relative bg-black rounded-lg overflow-hidden" style="height: 110px;">
                     <video id="webcamPreview" autoplay playsinline muted class="w-full h-full object-cover"></video>
                   </div>
                 </div>

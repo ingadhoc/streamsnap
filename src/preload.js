@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   registerShortcuts: shortcuts => ipcRenderer.invoke('register-shortcuts', shortcuts),
   showMainWindow: () => ipcRenderer.invoke('show-main-window'),
+  setMainWindowHeight: (height) => ipcRenderer.invoke('set-main-window-height', height),
 
   getDriveFolders: accessToken => ipcRenderer.invoke('get-drive-folders', accessToken),
   getDriveFoldersPaged: (accessToken, opts) => ipcRenderer.invoke('get-drive-folders-paged', accessToken, opts),
