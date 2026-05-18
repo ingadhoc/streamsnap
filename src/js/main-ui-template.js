@@ -122,14 +122,9 @@ window.mainUITemplate = `
                   <option value="default">System default camera</option>
                 </select>
                 <p id="webcamDeviceHint" class="text-xs text-gray-500 mt-1.5">Using system default camera.</p>
-                <div id="webcamTestContainer" class="hidden mt-3 p-3 bg-white rounded-lg border border-gray-200">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-medium text-gray-700">Live preview</span>
-                    <span class="text-xs text-gray-500" id="webcamStatus">Loading...</span>
-                  </div>
-                  <div class="relative bg-black rounded-lg overflow-hidden" style="height: 110px;">
-                    <video id="webcamPreview" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                  </div>
+                <div id="webcamTestContainer" class="hidden mt-2 rounded-lg border border-gray-200 overflow-hidden" style="height: 100px; position: relative; background: #000;">
+                  <video id="webcamPreview" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                  <span id="webcamStatus" class="absolute top-1.5 right-2 text-xs text-white" style="text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Loading...</span>
                 </div>
               </section>
             </div>
