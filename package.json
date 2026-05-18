@@ -1,6 +1,6 @@
 {
   "name": "streamsnap",
-  "version": "1.0.0",
+  "version": "1.0.15",
   "description": "Professional screen recording application built with Electron",
   "main": "main.js",
   "homepage": "https://github.com/lef-adhoc/streamsnap",
@@ -12,6 +12,7 @@
     "url": "https://github.com/lef-adhoc/streamsnap/issues"
   },
   "scripts": {
+    "sync:version": "node scripts/sync-version.js",
     "check:platform:mac": "node scripts/check-platform.js darwin",
     "check:platform:linux": "node scripts/check-platform.js linux",
     "check:platform:win": "node scripts/check-platform.js win32",
@@ -23,7 +24,7 @@
     "clean": "rm -rf dist/ && rm -rf build/",
     "prebuild": "npm run clean && npm run build:css",
     "prebuild:mac": "npm run check:platform:mac && npm run prebuild",
-    "prebuild:linux": "npm run check:platform:linux && npm run prebuild",
+    "prebuild:linux": "npm run check:platform:linux && npm run sync:version && npm run prebuild",
     "prebuild:win": "npm run check:platform:win && npm run prebuild",
     "build": "npm run prebuild:mac && electron-builder --mac dmg --publish=never",
     "build:app-only": "npm run prebuild:mac && electron-builder --mac dir --publish=never",
