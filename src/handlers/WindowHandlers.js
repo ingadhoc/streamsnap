@@ -188,6 +188,13 @@ class WindowHandlers {
         return { success: false, error: error.message }
       }
     })
+
+    ipcMain.on('drive-accounts-changed', () => {
+      const mainWindow = this.app.windowManager.getWindow('main')
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('drive-accounts-changed')
+      }
+    })
   }
 
   getTargetDisplay() {
