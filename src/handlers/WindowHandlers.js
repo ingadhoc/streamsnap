@@ -171,6 +171,7 @@ class WindowHandlers {
       }
     })
 
+    ipcMain.handle('open-youtube-accounts', async () => {
       try {
         const win = await this.app.windowManager.createYouTubeAccountsWindow()
         if (!win) {
