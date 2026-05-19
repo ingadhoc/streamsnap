@@ -1,7 +1,8 @@
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
-const keytar = require('keytar')
+let keytar = null
+try { keytar = require('keytar') } catch (e) {}
 const { app } = require('electron')
 const DriveService = require('./DriveService')
 const { KEYCHAIN_CONFIG } = require('../config/constants')
