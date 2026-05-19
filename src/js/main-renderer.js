@@ -96,6 +96,16 @@ class ScreenRecorder {
   setupGeneralControls() {
     const launchOnStartupEl = document.getElementById('launchOnStartup')
     if (launchOnStartupEl) {
+      // Sync toggle with real OS state on load
+      if (window.electronAPI && window.electronAPI.getLaunchOnStartup) {
+        window.electronAPI.getLaunchOnStartup().then(result => {
+          if (result && typeof result.enabled === 'boolean') {
+            launchOnStartupEl.checked = result.enabled
+            this.settingsManager.settings.launchOnStartup = result.enabled
+          }
+        }).catch(() => {})
+      }
+
       launchOnStartupEl.addEventListener('change', e => {
         this.settingsManager.settings.launchOnStartup = e.target.checked
         this.settingsManager.saveSettings()

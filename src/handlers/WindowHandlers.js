@@ -185,7 +185,28 @@ class WindowHandlers {
 
     ipcMain.handle('set-launch-on-startup', (event, enabled) => {
       try {
-        if (process.platform === 'darwin') {
+        if (process.platform === 'linux') {
+          const os = require('os')
+          const fs = require('fs')
+          const path = require('path')
+          const autostartDir = path.join(os.homedir(), '.config', 'autostart')
+          const desktopFile = path.join(autostartDir, 'streamsnap.desktop')
+          if (enabled) {
+            fs.mkdirSync(autostartDir, { recursive: true })
+            fs.writeFileSync(desktopFile, [
+              '[Desktop Entry]',
+              'Type=Application',
+              'Name=StreamSnap',
+              'Exec=/opt/StreamSnap/streamsnap --no-sandbox --hidden',
+              'Hidden=false',
+              'NoDisplay=false',
+              'X-GNOME-Autostart-enabled=true',
+              'Comment=Start StreamSnap on login'
+            ].join('\n') + '\n')
+          } else {
+            if (fs.existsSync(desktopFile)) fs.unlinkSync(desktopFile)
+          }
+        } else if (process.platform === 'darwin') {
           electronApp.setLoginItemSettings({
             openAtLogin: enabled,
             openAsHidden: true,
@@ -199,6 +220,21 @@ class WindowHandlers {
         return { success: true }
       } catch (error) {
         return { success: false, error: error.message }
+      }
+    })
+
+    ipcMain.handle('get-launch-on-startup', () => {
+      try {
+        if (process.platform === 'linux') {
+          const os = require('os')
+          const fs = require('fs')
+          const path = require('path')
+          const desktopFile = path.join(os.homedir(), '.config', 'autostart', 'streamsnap.desktop')
+          return { enabled: fs.existsSync(desktopFile) }
+        }
+        return { enabled: electronApp.getLoginItemSettings().openAtLogin }
+      } catch (e) {
+        return { enabled: false }
       }
     })
 
