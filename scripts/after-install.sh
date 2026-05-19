@@ -14,3 +14,6 @@ done
 
 gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
 update-desktop-database /usr/share/applications 2>/dev/null || true
+
+# Set setuid bit on chrome-sandbox so Electron sandbox works without --no-sandbox
+chmod 4755 /opt/StreamSnap/chrome-sandbox 2>/dev/null || true

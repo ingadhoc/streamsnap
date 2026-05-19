@@ -180,7 +180,8 @@
           "StartupNotify": true,
           "Categories": "AudioVideo;Video;Recorder;",
           "MimeType": "video/mp4;video/webm;",
-          "Keywords": "screen;recording;video;capture;"
+          "Keywords": "screen;recording;video;capture;",
+          "Exec": "/opt/StreamSnap/streamsnap --no-sandbox %U"
         }
       },
       "maintainer": "StreamSnap Team <contact@streamsnap.app>",
