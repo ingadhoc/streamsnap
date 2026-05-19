@@ -114,9 +114,21 @@ class WindowManager {
 
       await this.windows.main.loadFile('src/windows/main.html')
 
-      try {
-        this.windows.main.setIcon(this.getAppIcon())
-      } catch (e) {}
+      this.windows.main.webContents.once('dom-ready', () => {
+        this.windows.main.show()
+      })
+
+      this.windows.main.once('ready-to-show', () => {
+        if (!this.windows.main.isVisible()) {
+          this.windows.main.show()
+        }
+      })
+
+      this.mainWindowHasBeenShown = true
+      this.windows.main.show()
+      if (startMinimized) {
+        this.windows.main.minimize()
+      }
 
       this.windows.main.on('closed', () => {
         this.windows.main = null

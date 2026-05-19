@@ -2,10 +2,7 @@ const { app, session } = require('electron')
 
 // Enable PipeWire screen-capture support on Linux/Wayland before the app is ready.
 if (process.platform === 'linux') {
-  app.commandLine.appendSwitch('disable-gpu')
-  app.commandLine.appendSwitch('disable-software-rasterizer')
   app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
-  app.disableHardwareAcceleration()
 }
 
 const environment = require('./src/config/environment')
