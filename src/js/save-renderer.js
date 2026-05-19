@@ -632,8 +632,22 @@ class SaveVideoHandler {
       this.videoObjectUrl = null
     }
 
-    this.videoObjectUrl = URL.createObjectURL(new Blob([blobData], { type: this.getOutputMimeType() }))
+    // If blobData is already a Blob (in-memory path), use it directly so we
+    // preserve the exact codec-specific MIME type that MediaRecorder set
+    // (e.g. "video/mp4;codecs=avc1.640028,mp4a.40.2").  Re-wrapping it with
+    // the generic type loses that hint and can prevent Chromium from picking
+    // the right decoder for the blob URL.
+    // For raw buffers that arrive via IPC we still need to infer the type.
+    const blob =
+      blobData instanceof Blob
+        ? blobData
+        : new Blob([blobData], { type: this.getOutputMimeType() })
+
+    this.videoObjectUrl = URL.createObjectURL(blob)
     video.src = this.videoObjectUrl
+    // Explicitly trigger loading — needed when the element was previously in
+    // an error/empty state (e.g. second recording in the same session).
+    video.load()
   }
 
   async loadVideoData() {
@@ -672,7 +686,7 @@ class SaveVideoHandler {
               })
             }
 
-            const sizeInMB = (videoBlob.byteLength / (1024 * 1024)).toFixed(1)
+            const sizeInMB = ((videoBlob.size ?? videoBlob.byteLength ?? 0) / (1024 * 1024)).toFixed(1)
             sizeSpan.textContent = `Size: ${sizeInMB} MB`
           } else {
             this.showError('No video data available. Please try recording again.')

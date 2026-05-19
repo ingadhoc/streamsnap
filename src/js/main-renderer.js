@@ -935,8 +935,9 @@ class ScreenRecorder {
       'video/mp4;codecs=avc1.640028,mp4a.40.2',
       'video/mp4;codecs=avc1.4D401F,mp4a.40.2',
       'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-      'video/mp4;codecs=h264,aac',
-      'video/mp4'
+      'video/mp4;codecs=h264,aac'
+      // Omit the bare 'video/mp4' fallback: without a codec hint Chromium may
+      // choose an unexpected codec whose blob URL it can't decode for preview.
     ]
     const webmTypes = [
       'video/webm;codecs=vp9,opus',
