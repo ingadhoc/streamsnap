@@ -192,6 +192,7 @@
       "afterInstall": "scripts/after-install.sh"
     },
     "nsis": {
+      "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
