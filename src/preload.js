@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   openExternal: url => ipcRenderer.invoke('open-external', url),
   openFolder: folderPath => ipcRenderer.invoke('open-folder', folderPath),
+  copyToClipboard: text => ipcRenderer.invoke('copy-to-clipboard', text),
 
   startRecording: () => ipcRenderer.invoke('start-recording'),
   pauseRecording: () => ipcRenderer.invoke('pause-recording'),

@@ -3,6 +3,7 @@ class ScreenRecorder {
     this.recordingState = new RecordingState()
     this.settingsManager = new SettingsManager()
     this.uiManager = new UIManager()
+    this.historyManager = new window.HistoryManager()
     this.keyboardShortcuts = null
     this.driveAutoSaveAccounts = []
     this.micStream = null
@@ -68,6 +69,7 @@ class ScreenRecorder {
     const startBtn = document.getElementById('startRecordingBtn')
     startBtn.addEventListener('click', () => this.openSourceSelector())
     this.uiManager.updateRecordingStatus('Ready to record', 'ready')
+    this.historyManager.init()
     this.setupSettingsControls()
 
     if (window.KeyboardShortcutsManager) {
