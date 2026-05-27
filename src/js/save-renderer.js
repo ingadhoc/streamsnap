@@ -9,6 +9,7 @@ class SaveVideoHandler {
     this.selectedAccounts = new Map()
     this.selectedYouTubeAccounts = new Set()
     this.autoSaveSuccessModalShown = false
+    this.trackedAutoSaveFileIds = new Set()
 
     this.initializeUI()
     this.loadSaveOptions()
@@ -205,6 +206,10 @@ class SaveVideoHandler {
 
     const uploads = Array.isArray(this.saveOptions?.autoSaveUploads) ? this.saveOptions.autoSaveUploads : []
     const autoSaved = this.saveOptions?.autoSaved === true
+
+    if (uploads.length > 0) {
+      this.trackAutoSaveUploadsInHistory(uploads)
+    }
 
     if (!autoSaved || uploads.length === 0) return
 
@@ -496,6 +501,13 @@ class SaveVideoHandler {
       this.showSavingState(false)
 
       if (result && result.success) {
+        this.addToHistory({
+          title: result.fileName || fileName,
+          type: 'drive',
+          url: result.webViewLink || '',
+          account: account.displayName || account.email || 'Drive account'
+        })
+
         if (result.webViewLink || result.fileId) {
           this.showDriveSaveSuccessModal(
             {
@@ -588,6 +600,13 @@ class SaveVideoHandler {
       this.showSavingState(false)
 
       if (result && result.success) {
+        this.addToHistory({
+          title: fileName,
+          type: 'local',
+          filePath: result.filePath || `${folder}/${fileName}`,
+          account: 'This computer'
+        })
+
         this.showLocalSaveSuccessModal(result.filePath || `${folder}/${fileName}`, fileName)
       } else {
         this.showError('Failed to save video locally')
@@ -1100,6 +1119,13 @@ class SaveVideoHandler {
       this.showSavingState(false)
 
       if (result && result.success) {
+        this.addToHistory({
+          title,
+          type: 'youtube',
+          url: result.videoUrl || '',
+          account: account.channelName || 'YouTube channel'
+        })
+
         if (btn) {
           btn.innerHTML = '✅ Uploaded!'
         }
@@ -1152,6 +1178,31 @@ class SaveVideoHandler {
     } catch (error) {
       this.showError('Failed to open YouTube accounts manager')
     }
+  }
+
+  addToHistory(entry) {
+    try {
+      if (window.HistoryManager && typeof window.HistoryManager.addEntry === 'function') {
+        window.HistoryManager.addEntry(entry)
+      }
+    } catch (e) {}
+  }
+
+  trackAutoSaveUploadsInHistory(uploads) {
+    if (!Array.isArray(uploads) || uploads.length === 0) return
+
+    uploads.forEach(upload => {
+      const fileKey = upload?.fileId || upload?.webViewLink || upload?.fileName
+      if (!fileKey || this.trackedAutoSaveFileIds.has(fileKey)) return
+
+      this.trackedAutoSaveFileIds.add(fileKey)
+      this.addToHistory({
+        title: upload.fileName || 'Auto-saved video',
+        type: 'drive',
+        url: upload.webViewLink || '',
+        account: upload.accountName || upload.accountEmail || 'Drive account'
+      })
+    })
   }
 }
 

@@ -504,7 +504,7 @@ class RecordingHandlers {
   createAutoSaveFileName(outputFormat = 'mp4') {
     const now = new Date()
     const pad = n => String(n).padStart(2, '0')
-    const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+    const dateStr = `${pad(now.getDate())}_${pad(now.getMonth() + 1)}_${now.getFullYear()}_${pad(now.getHours())}_${pad(now.getMinutes())}_${pad(now.getSeconds())}`
     const extension = outputFormat === 'webm' ? 'webm' : 'mp4'
     return `StreamSnap_${dateStr}.${extension}`
   }

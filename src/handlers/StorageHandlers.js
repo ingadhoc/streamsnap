@@ -69,6 +69,12 @@ class StorageHandlers {
       return { success: true }
     })
 
+    ipcMain.handle('copy-to-clipboard', (event, text) => {
+      const { clipboard } = require('electron')
+      clipboard.writeText(text || '')
+      return { success: true }
+    })
+
     ipcMain.handle('open-folder', (event, itemPath) => {
       const { shell } = require('electron')
       const fs = require('fs')

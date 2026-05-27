@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../css/save-video.css" />
     <link rel="stylesheet" href="../css/upload-success-modal.css" />
     <link rel="stylesheet" href="../css/folder-picker-modal.css" />
+    <link rel="stylesheet" href="../css/history.css" />
   </head>
   <body class="bg-gradient-to-br from-slate-100 to-blue-100 min-h-screen flex items-start justify-center font-sans overflow-hidden">
     <div class="max-w-2xl w-full mx-auto px-6 py-4" style="height:100vh;display:flex;flex-direction:column;">
@@ -34,7 +35,12 @@
           >
             ⚙️ Settings
           </button>
-
+          <button
+            id="historyTab"
+            class="tab-button flex-1 py-3 px-4 text-center font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            🎬 Videos
+          </button>
         </div>
 
         <!-- Record Panel -->
@@ -589,6 +595,9 @@
             </div>
           </div>
         </div>
+
+        <!-- History Panel -->
+        <div id="historyPanel" class="tab-panel hidden flex-1 min-h-0"></div>
       </div>
     </div>
 
@@ -885,8 +894,10 @@
       <div id="youtubeAccountsOverlayContent" class="min-h-full flex items-center justify-center"></div>
     </div>
 
+    <!-- History panel (injected after settings panel by tab-manager) -->
     <script>window.__isMainWindow = true;</script>
     <script src="../js/settings-manager.js"></script>
+    <script src="../js/history-manager.js"></script>
     <script src="../js/recording-state.js"></script>
     <script src="../js/ui-manager.js"></script>
     <script src="../js/tab-manager.js"></script>
