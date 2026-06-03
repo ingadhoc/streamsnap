@@ -669,10 +669,6 @@ class ScreenRecorder {
           window.saveVideoHandler = new SaveVideoHandler()
         }
         overlay.classList.remove('hidden')
-        // Close overlay when clicking the backdrop (outside the content card)
-        overlay.addEventListener('click', e => {
-          if (e.target === overlay) overlay.classList.add('hidden')
-        }, { once: false })
         // Close button inside the overlay
         const closeBtn = document.getElementById('savePanelCloseBtn')
         if (closeBtn && !closeBtn._hasOverlayListener) {
