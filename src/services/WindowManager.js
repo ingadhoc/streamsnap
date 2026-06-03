@@ -642,6 +642,9 @@ class WindowManager {
       try {
         this.windows.webcam.setHasShadow(false)
       } catch (e) {}
+      try {
+        this.windows.webcam.setIgnoreMouseEvents(false)
+      } catch (e) {}
 
       this.windows.webcam.on('closed', () => {
         this.windows.webcam = null
