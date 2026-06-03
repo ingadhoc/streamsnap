@@ -732,7 +732,7 @@ class ScreenRecorder {
       }
 
       this.recordingState.stream = finalStream
-      this.setupMediaRecorder(finalStream)
+      await this.setupMediaRecorder(finalStream)
 
       this.recordingState.mediaRecorder.start(1000)
       this.recordingState.startTimer()
@@ -929,29 +929,47 @@ class ScreenRecorder {
     }
   }
 
-  setupMediaRecorder(stream) {
-    let options = { videoBitsPerSecond: 2500000 }
+  async setupMediaRecorder(stream) {
     const preferMp4 = this.settingsManager.settings.enableMp4Conversion !== false
 
-    const mp4Types = [
-      'video/mp4;codecs=avc1.640028,mp4a.40.2',
-      'video/mp4;codecs=avc1.4D401F,mp4a.40.2',
-      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-      'video/mp4;codecs=h264,aac'
-      // Omit the bare 'video/mp4' fallback: without a codec hint Chromium may
-      // choose an unexpected codec whose blob URL it can't decode for preview.
-    ]
+    // ── Try WebCodecs MP4 path first ────────────────────────────────────────
+    if (preferMp4 && window.probeMp4Support && window.Mp4WebCodecsRecorder) {
+      let mp4Supported = false
+      try {
+        mp4Supported = await window.probeMp4Support()
+      } catch {}
+
+      if (mp4Supported) {
+        const options = { videoBitsPerSecond: 2_500_000 }
+        this.recordingState.mediaRecorder = new window.Mp4WebCodecsRecorder(stream, options)
+        this.recordingState.recordedChunks = []
+
+        this.recordingState.mediaRecorder.ondataavailable = event => {
+          if (event.data && event.data.size > 0) this.recordingState.recordedChunks.push(event.data)
+        }
+        this.recordingState.mediaRecorder.onstop = () => {
+          this.handleRecordingStop()
+        }
+        this.recordingState.mediaRecorder.onerror = () => {}
+
+        stream.getVideoTracks()[0].addEventListener('ended', () => {
+          this.stopRecording()
+        })
+        return
+      }
+    }
+
+    // ── Fallback: standard MediaRecorder (WebM) ─────────────────────────────
+    let options = { videoBitsPerSecond: 2500000 }
+
     const webmTypes = [
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
       'video/webm;codecs=h264',
       'video/webm'
     ]
-    const preferredMimeTypes = preferMp4
-      ? [...mp4Types, ...webmTypes]
-      : [...webmTypes, ...mp4Types]
 
-    const supportedType = preferredMimeTypes.find(type => MediaRecorder.isTypeSupported(type))
+    const supportedType = webmTypes.find(type => MediaRecorder.isTypeSupported(type))
     if (supportedType) {
       options.mimeType = supportedType
     }
