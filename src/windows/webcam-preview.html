@@ -29,6 +29,9 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         position: relative;
         touch-action: none;
+        cursor: move;
+        /* Entire camera area is draggable */
+        -webkit-app-region: drag;
       }
       video {
         width: 100%;
@@ -36,29 +39,12 @@
         object-fit: cover;
         display: block;
         background: #000;
-      }
-      #handle {
-        position: absolute;
-        top: 6px;
-        left: 6px;
-        width: 20px;
-        height: 20px;
-        background: rgba(255, 255, 255, 0.12);
-        color: #fff;
-        font-size: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-        cursor: move;
-        /* Make handle a draggable region so the user can move the webcam window */
         -webkit-app-region: drag;
       }
     </style>
   </head>
   <body>
     <div id="previewWrapper" aria-hidden="false">
-      <div id="handle">≡</div>
       <video id="webcamVideo" autoplay muted playsinline></video>
     </div>
 

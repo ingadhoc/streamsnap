@@ -56,7 +56,6 @@ function stopWebcamPreview() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   const closeBtn = document.getElementById('closeBtn')
-  const handle = document.getElementById('handle')
 
   await startWebcamPreview()
 
