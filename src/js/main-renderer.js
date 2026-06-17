@@ -300,16 +300,10 @@ class ScreenRecorder {
     select.disabled = !hasDefaultOption
 
     const hasPreferred = selectedBefore === 'default' || devices.some(device => device.deviceId === selectedBefore)
-    const nextValue = hasPreferred ? selectedBefore : 'default'
-    select.value = nextValue
-
-    if (selectId === 'micDeviceSelect') {
-      this.settingsManager.settings.preferredMicrophoneId = nextValue
-    } else if (selectId === 'webcamDeviceSelect') {
-      this.settingsManager.settings.preferredWebcamId = nextValue
-    }
-
-    this.settingsManager.saveSettings()
+    select.value = hasPreferred ? selectedBefore : 'default'
+    // Do NOT write back to settings or call saveSettings() here — this runs on
+    // every startup and devices may be unavailable before permissions are granted,
+    // which would permanently overwrite the user's saved device preference.
   }
 
   updateDeviceHints() {
@@ -488,7 +482,10 @@ class ScreenRecorder {
         : []
       const validIds = savedIds.filter(id => activeIds.has(id))
 
-      if (validIds.length !== savedIds.length) {
+      // Only persist the filtered list if we got a non-empty accounts response —
+      // an empty list likely means accounts haven't loaded yet, not that they
+      // were all removed, and saving an empty array would erase the user's config.
+      if (accounts.length > 0 && validIds.length !== savedIds.length) {
         this.settingsManager.settings.driveAutoSaveAccountIds = validIds
         this.settingsManager.saveSettings()
       }
