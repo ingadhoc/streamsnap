@@ -936,22 +936,38 @@ class ScreenRecorder {
       } catch {}
 
       if (mp4Supported) {
-        const options = { videoBitsPerSecond: 2_500_000 }
-        this.recordingState.mediaRecorder = new window.Mp4WebCodecsRecorder(stream, options)
-        this.recordingState.recordedChunks = []
+        // Verify the encoder actually works with this specific stream at its
+        // native resolution — the generic probe can pass while a real capture
+        // stream silently produces zero encoded frames on some GPU/drivers.
+        let streamVerified = false
+        try {
+          streamVerified = window.verifyMp4ForStream
+            ? await window.verifyMp4ForStream(stream)
+            : false
+        } catch {}
 
-        this.recordingState.mediaRecorder.ondataavailable = event => {
-          if (event.data && event.data.size > 0) this.recordingState.recordedChunks.push(event.data)
-        }
-        this.recordingState.mediaRecorder.onstop = () => {
-          this.handleRecordingStop()
-        }
-        this.recordingState.mediaRecorder.onerror = () => {}
+        if (streamVerified) {
+          const options = { videoBitsPerSecond: 2_500_000 }
+          this.recordingState.mediaRecorder = new window.Mp4WebCodecsRecorder(stream, options)
+          this.recordingState.recordedChunks = []
 
-        stream.getVideoTracks()[0].addEventListener('ended', () => {
-          this.stopRecording()
-        })
-        return
+          this.recordingState.mediaRecorder.ondataavailable = event => {
+            if (event.data && event.data.size > 0) this.recordingState.recordedChunks.push(event.data)
+          }
+          this.recordingState.mediaRecorder.onstop = () => {
+            this.handleRecordingStop()
+          }
+          this.recordingState.mediaRecorder.onerror = (event) => {
+            console.warn('[StreamSnap] Mp4WebCodecsRecorder error:', event?.error || event)
+          }
+
+          stream.getVideoTracks()[0].addEventListener('ended', () => {
+            this.stopRecording()
+          })
+          return
+        }
+
+        console.warn('[StreamSnap] WebCodecs H.264 failed stream verification — falling back to WebM')
       }
     }
 
@@ -1014,11 +1030,9 @@ class ScreenRecorder {
       this.recordingState.isRecording = false
       this.recordingState.isPaused = false
 
-      this.recordingState.stream.getTracks().forEach(track => {
-        track.stop()
-      })
-
-      this.recordingState.cleanup()
+      // Stream teardown and cleanup() are deferred to handleRecordingStop()
+      // so that an async WebCodecs encoder/muxer can fully finalize before
+      // the underlying tracks are stopped.
 
       if (!fromFloatingWindow) {
         await window.electronAPI.stopRecording()
@@ -1059,6 +1073,12 @@ class ScreenRecorder {
   }
 
   async handleRecordingStop() {
+    // Tear down the stream now that recording is fully complete (or discarded).
+    // Deferring this here lets the WebCodecs encoder/muxer finalize before
+    // tracks are stopped (cleanup() is idempotent; discardRecording() calls it
+    // independently after nulling onstop, so this path is only for normal stop).
+    this.recordingState.cleanup()
+
     if (this.recordingState.isDiscarding) {
       this.recordingState.isDiscarding = false
       this.recordingState.recordedChunks = []

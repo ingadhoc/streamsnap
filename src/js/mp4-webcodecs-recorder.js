@@ -145,6 +145,120 @@ async function _verifyVideoEncoderEmitsOutput(config) {
   })
 }
 
+// ── Per-stream verification ───────────────────────────────────────────────────
+
+/**
+ * Validates that WebCodecs H.264 encoding actually works with the real capture
+ * stream by reading 1–2 live frames and confirming the encoder produces output.
+ *
+ * Unlike probeMp4Support() this is NOT cached — it depends on the stream's
+ * resolution and the GPU driver behaviour for that resolution.
+ *
+ * @param {MediaStream} stream — the capture stream (only clones the video track)
+ * @returns {Promise<boolean>}
+ */
+async function verifyMp4ForStream(stream) {
+  const videoTrack = stream.getVideoTracks()[0]
+  if (!videoTrack) return false
+
+  const clonedTrack = videoTrack.clone()
+  let encoderRef = null
+  let readerRef = null
+  const frames = []
+
+  const cleanup = () => {
+    for (const f of frames) { try { f.close() } catch {} }
+    frames.length = 0
+    try { if (encoderRef && encoderRef.state !== 'closed') encoderRef.close() } catch {}
+    try { if (readerRef) readerRef.cancel().catch(() => {}) } catch {}
+    clonedTrack.stop()
+  }
+
+  try {
+    const vSettings = videoTrack.getSettings()
+    const rawW = vSettings.width || 1280
+    const rawH = vSettings.height || 720
+    const fps = vSettings.frameRate || 30
+    const encW = Math.floor(rawW / 2) * 2 || 1280
+    const encH = Math.floor(rawH / 2) * 2 || 720
+
+    // Find a supported H.264 config at the real stream's native dimensions
+    let config = null
+    outer: for (const codec of ['avc1.42E028', 'avc1.64002A']) {
+      for (const hw of ['no-preference', 'prefer-software', 'prefer-hardware']) {
+        try {
+          const r = await VideoEncoder.isConfigSupported({
+            codec, width: encW, height: encH,
+            bitrate: 2_500_000, framerate: fps,
+            hardwareAcceleration: hw,
+          })
+          if (r?.supported) {
+            config = { codec, width: encW, height: encH, bitrate: 2_500_000, framerate: fps, hardwareAcceleration: hw }
+            break outer
+          }
+        } catch {}
+      }
+    }
+    if (!config) { cleanup(); return false }
+
+    // Encode 1–2 real frames from the cloned track; resolve true only if the
+    // encoder actually emits encoded chunks (guards against the silent
+    // "isConfigSupported lies" failure on certain GPU/driver combos).
+    let chunks = 0
+    const result = await Promise.race([
+      new Promise(resolve => {
+        try {
+          encoderRef = new VideoEncoder({
+            output: () => { chunks++ },
+            error: (e) => {
+              console.warn('[Mp4Recorder] verifyMp4ForStream encoder error:', e)
+              resolve(false)
+            },
+          })
+          encoderRef.configure({ ...config, bitrateMode: 'variable', latencyMode: 'realtime' })
+        } catch (e) {
+          console.warn('[Mp4Recorder] verifyMp4ForStream configure error:', e)
+          resolve(false)
+          return
+        }
+
+        const processor = new MediaStreamTrackProcessor({ track: clonedTrack })
+        readerRef = processor.readable.getReader()
+
+        const readFrames = async () => {
+          let framesRead = 0
+          try {
+            while (framesRead < 2) {
+              const { done, value: frame } = await readerRef.read()
+              if (done || !frame) break
+              frames.push(frame)
+              encoderRef.encode(frame, { keyFrame: framesRead === 0 })
+              framesRead++
+            }
+            if (framesRead === 0) { resolve(false); return }
+            await encoderRef.flush()
+            resolve(chunks > 0)
+          } catch (e) {
+            console.warn('[Mp4Recorder] verifyMp4ForStream read/flush error:', e)
+            resolve(false)
+          }
+        }
+
+        readFrames()
+      }),
+      // Timeout guard: if the stream never delivers a frame, fail fast
+      new Promise(resolve => setTimeout(() => resolve(false), 1500)),
+    ])
+
+    cleanup()
+    return result
+  } catch (e) {
+    console.warn('[Mp4Recorder] verifyMp4ForStream unexpected error:', e)
+    cleanup()
+    return false
+  }
+}
+
 // ── Mp4WebCodecsRecorder ──────────────────────────────────────────────────────
 
 /**
@@ -355,9 +469,11 @@ class Mp4WebCodecsRecorder {
               const packet = new EncodedPacket(data, chunk.type, tsSeconds, durUs / 1_000_000)
               try {
                 audioSource.add(packet, meta)
-              } catch {}
+              } catch (e) {
+                console.warn('[Mp4Recorder] audioSource.add error:', e)
+              }
             },
-            error: () => {},
+            error: (e) => { console.warn('[Mp4Recorder] audio encoder error:', e) },
           })
 
           this._audioEncoder.configure({
@@ -390,9 +506,11 @@ class Mp4WebCodecsRecorder {
         const packet = new EncodedPacket(data, chunk.type, tsUs / 1_000_000, durUs / 1_000_000)
         try {
           videoSource.add(packet, effectiveMeta)
-        } catch {}
+        } catch (e) {
+          console.warn('[Mp4Recorder] videoSource.add error:', e)
+        }
       },
-      error: () => {},
+      error: (e) => { console.warn('[Mp4Recorder] video encoder error:', e) },
     })
 
     this._videoEncoder.configure({
@@ -529,3 +647,4 @@ class Mp4WebCodecsRecorder {
 // ── Exports to non-module scripts ─────────────────────────────────────────────
 window.Mp4WebCodecsRecorder = Mp4WebCodecsRecorder
 window.probeMp4Support = probeMp4Support
+window.verifyMp4ForStream = verifyMp4ForStream
