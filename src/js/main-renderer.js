@@ -89,7 +89,7 @@ class ScreenRecorder {
   setupSettingsControls() {
     this.setupGeneralControls()
     this.setupAudioControls()
-    this.setupVideoOutputControls()
+
     this.setupCountdownControls()
     this.setupFolderControls()
     this.setupDriveControls()
@@ -116,16 +116,6 @@ class ScreenRecorder {
         }
       })
     }
-  }
-
-  setupVideoOutputControls() {
-    const enableMp4ConversionEl = document.getElementById('enableMp4Conversion')
-    if (!enableMp4ConversionEl) return
-
-    enableMp4ConversionEl.addEventListener('change', e => {
-      this.settingsManager.settings.enableMp4Conversion = e.target.checked
-      this.settingsManager.saveSettings()
-    })
   }
 
   setupAudioControls() {
@@ -923,52 +913,10 @@ class ScreenRecorder {
   }
 
   async setupMediaRecorder(stream) {
-    const preferMp4 = this.settingsManager.settings.enableMp4Conversion !== false
-
-    // ── Try WebCodecs MP4 path first ────────────────────────────────────────
-    if (preferMp4 && window.probeMp4Support && window.Mp4WebCodecsRecorder) {
-      let mp4Supported = false
-      try {
-        mp4Supported = await window.probeMp4Support()
-      } catch {}
-
-      if (mp4Supported) {
-        // Verify the encoder actually works with this specific stream at its
-        // native resolution — the generic probe can pass while a real capture
-        // stream silently produces zero encoded frames on some GPU/drivers.
-        let streamVerified = false
-        try {
-          streamVerified = window.verifyMp4ForStream
-            ? await window.verifyMp4ForStream(stream)
-            : false
-        } catch {}
-
-        if (streamVerified) {
-          const options = { videoBitsPerSecond: 2_500_000 }
-          this.recordingState.mediaRecorder = new window.Mp4WebCodecsRecorder(stream, options)
-          this.recordingState.recordedChunks = []
-
-          this.recordingState.mediaRecorder.ondataavailable = event => {
-            if (event.data && event.data.size > 0) this.recordingState.recordedChunks.push(event.data)
-          }
-          this.recordingState.mediaRecorder.onstop = () => {
-            this.handleRecordingStop()
-          }
-          this.recordingState.mediaRecorder.onerror = (event) => {
-            console.warn('[StreamSnap] Mp4WebCodecsRecorder error:', event?.error || event)
-          }
-
-          stream.getVideoTracks()[0].addEventListener('ended', () => {
-            this.stopRecording()
-          })
-          return
-        }
-
-        console.warn('[StreamSnap] WebCodecs H.264 failed stream verification — falling back to WebM')
-      }
-    }
-
-    // ── Fallback: standard MediaRecorder (WebM) ─────────────────────────────
+    // Always record with standard MediaRecorder (WebM).
+    // WebCodecs H.264 on Linux silently produces zero frames on many GPU/driver
+    // combinations, causing "no data captured" failures. WebM via MediaRecorder
+    // works reliably across all platforms.
     let options = { videoBitsPerSecond: 2500000 }
 
     const webmTypes = [
@@ -1071,9 +1019,6 @@ class ScreenRecorder {
 
   async handleRecordingStop() {
     // Tear down the stream now that recording is fully complete (or discarded).
-    // Deferring this here lets the WebCodecs encoder/muxer finalize before
-    // tracks are stopped (cleanup() is idempotent; discardRecording() calls it
-    // independently after nulling onstop, so this path is only for normal stop).
     this.recordingState.cleanup()
 
     if (this.recordingState.isDiscarding) {
