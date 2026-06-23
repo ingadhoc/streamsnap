@@ -40,10 +40,19 @@ jobs:
               dist/*.exe
               dist/*.blockmap
               dist/latest.yml
+          - os_name: mac
+            runner: macos-latest
+            build_command: npm run build:all-mac
+            artifact_globs: |
+              dist/*.dmg
+              dist/*.zip
+              dist/*.blockmap
+              dist/latest-mac.yml
 
     env:
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
     steps:
       - name: Checkout

@@ -199,6 +199,73 @@ jobs:
             echo "name=Release ${TAG}" >> "$GITHUB_OUTPUT"
           fi
 
+  build-mac:
+    needs: build-linux
+    runs-on: macos-latest
+    env:
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ inputs.target_ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate OAuth secrets and create .env
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GOOGLE_CLIENT_ID:-}" ] || [ -z "${GOOGLE_CLIENT_SECRET:-}" ]; then
+            echo "Missing required OAuth secrets."
+            echo "Expected repository secrets: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET"
+            exit 1
+          fi
+
+          {
+            echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"
+            echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"
+          } > .env
+
+          chmod 600 .env
+          echo "Created .env for packaged build."
+
+      - name: Sync package version to release tag (Mac)
+        env:
+          TAG: ${{ needs.build-linux.outputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${TAG#v}"
+          npm pkg set version="${VERSION}"
+          echo "Building Mac artifacts with package version ${VERSION}"
+
+      - name: Build Mac artifacts
+        run: npm run build:all-mac
+
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mac-artifacts
+          if-no-files-found: error
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest-mac.yml
+
   build-windows:
     needs: build-linux
     runs-on: windows-latest
@@ -297,6 +364,7 @@ jobs:
   create-release:
     needs:
       - build-linux
+      - build-mac
       - build-windows
       - publish-to-apt
     runs-on: ubuntu-latest
@@ -307,6 +375,12 @@ jobs:
         with:
           name: linux-artifacts
           path: release-artifacts/linux
+
+      - name: Download Mac artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: mac-artifacts
+          path: release-artifacts/mac
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -346,6 +420,7 @@ jobs:
           name: ${{ needs.build-linux.outputs.release_name }}
           files: |
             release-artifacts/linux/*
+            release-artifacts/mac/*
             release-artifacts/windows/*
           prerelease: ${{ inputs.prerelease }}
           generate_release_notes: true
