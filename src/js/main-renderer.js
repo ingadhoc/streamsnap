@@ -77,10 +77,11 @@ class ScreenRecorder {
       this.keyboardShortcuts.init()
     }
 
-    // Show mic/webcam tests if already enabled (either current session or default)
+    // Show mic test if already enabled (either current session or default)
     if (this.settingsManager.settings.recordMicrophone || this.settingsManager.settings.defaultRecordMicrophone) {
       this.showMicTest()
     }
+    // Webcam: only show the preview button, never auto-start the camera
     if (this.settingsManager.settings.recordWebcam || this.settingsManager.settings.defaultRecordWebcam) {
       this.showWebcamTest()
     }
@@ -139,8 +140,8 @@ class ScreenRecorder {
     document.getElementById('recordWebcam').addEventListener('change', e => {
       this.settingsManager.settings.recordWebcam = e.target.checked
       this.settingsManager.saveSettings()
-      
-      // Show/hide webcam preview
+
+      // Show/hide the preview button (never auto-start camera)
       if (e.target.checked) {
         this.showWebcamTest()
       } else {
@@ -208,8 +209,10 @@ class ScreenRecorder {
         this.settingsManager.saveSettings()
         this.updateDeviceHints()
 
-        if (this.settingsManager.settings.recordWebcam) {
-          await this.showWebcamTest(true)
+        if (this.settingsManager.settings.recordWebcam && this.webcamStream) {
+          // Restart the active preview with the new device
+          this.stopWebcamStream()
+          await this.toggleWebcamPreview()
         }
       })
     }
@@ -1217,60 +1220,71 @@ class ScreenRecorder {
     animate()
   }
 
-  async showWebcamTest(forceRestart = false) {
+  showWebcamTest() {
     const container = document.getElementById('webcamTestContainer')
-    const video = document.getElementById('webcamPreview')
-    const status = document.getElementById('webcamStatus')
-    
-    if (!container || !video) return
-    
-    if (forceRestart) {
-      this.hideWebcamTest()
-    }
+    if (!container) return
 
     container.classList.remove('hidden')
 
-    try {
-      // Request webcam access
-      this.webcamStream = await navigator.mediaDevices.getUserMedia({ 
-        video: this.getPreferredWebcamConstraints()
-      })
-      
-      video.srcObject = this.webcamStream
-      
-      status.textContent = '✓ Working'
-      status.style.color = '#22c55e'
-      this.refreshMediaDevices({ requestPermission: false })
-    } catch (error) {
-      status.textContent = '✗ Error'
-      status.style.color = '#ef4444'
-      console.error('Webcam access error:', error)
+    const btn = document.getElementById('webcamPreviewBtn')
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = 'true'
+      btn.addEventListener('click', () => this.toggleWebcamPreview())
     }
   }
 
-  hideWebcamTest() {
-    const container = document.getElementById('webcamTestContainer')
-    const video = document.getElementById('webcamPreview')
-    
-    if (container) {
-      container.classList.add('hidden')
-    }
+  async toggleWebcamPreview() {
+    const videoContainer = document.getElementById('webcamVideoContainer')
+    const btn = document.getElementById('webcamPreviewBtn')
 
-    // Stop webcam stream
+    if (this.webcamStream) {
+      this.stopWebcamStream()
+      if (videoContainer) videoContainer.classList.add('hidden')
+      if (btn) btn.textContent = 'Preview camera'
+    } else {
+      const video = document.getElementById('webcamPreview')
+      const status = document.getElementById('webcamStatus')
+      if (!video) return
+
+      if (videoContainer) videoContainer.classList.remove('hidden')
+      if (btn) btn.textContent = 'Stop preview'
+      if (status) { status.textContent = 'Loading...'; status.style.color = '' }
+
+      try {
+        this.webcamStream = await navigator.mediaDevices.getUserMedia({
+          video: this.getPreferredWebcamConstraints()
+        })
+        video.srcObject = this.webcamStream
+        if (status) { status.textContent = '✓ Working'; status.style.color = '#22c55e' }
+        this.refreshMediaDevices({ requestPermission: false })
+      } catch (error) {
+        if (status) { status.textContent = '✗ Error'; status.style.color = '#ef4444' }
+        console.error('Webcam access error:', error)
+      }
+    }
+  }
+
+  stopWebcamStream() {
+    const video = document.getElementById('webcamPreview')
     if (this.webcamStream) {
       this.webcamStream.getTracks().forEach(track => track.stop())
       this.webcamStream = null
     }
-    
-    if (video) {
-      video.srcObject = null
-    }
-
+    if (video) video.srcObject = null
     const status = document.getElementById('webcamStatus')
-    if (status) {
-      status.textContent = 'Loading...'
-      status.style.color = ''
-    }
+    if (status) { status.textContent = 'Loading...'; status.style.color = '' }
+  }
+
+  hideWebcamTest() {
+    const container = document.getElementById('webcamTestContainer')
+    const videoContainer = document.getElementById('webcamVideoContainer')
+    const btn = document.getElementById('webcamPreviewBtn')
+
+    this.stopWebcamStream()
+
+    if (container) container.classList.add('hidden')
+    if (videoContainer) videoContainer.classList.add('hidden')
+    if (btn) btn.textContent = 'Preview camera'
   }
 
   showMultiAccountSuccessModal(payload) {}
