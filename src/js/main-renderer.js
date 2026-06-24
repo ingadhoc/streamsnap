@@ -10,6 +10,7 @@ class ScreenRecorder {
     this.micAnalyser = null
     this.micAnimationFrame = null
     this.webcamStream = null
+    this.webcamPreviewActive = false
     this.availableAudioInputs = []
     this.availableVideoInputs = []
     this._onMediaDeviceChange = null
@@ -1237,7 +1238,8 @@ class ScreenRecorder {
     const videoContainer = document.getElementById('webcamVideoContainer')
     const btn = document.getElementById('webcamPreviewBtn')
 
-    if (this.webcamStream) {
+    if (this.webcamStream || this.webcamPreviewActive) {
+      this.webcamPreviewActive = false
       this.stopWebcamStream()
       if (videoContainer) videoContainer.classList.add('hidden')
       if (btn) btn.textContent = 'Preview camera'
@@ -1246,6 +1248,7 @@ class ScreenRecorder {
       const status = document.getElementById('webcamStatus')
       if (!video) return
 
+      this.webcamPreviewActive = true
       if (videoContainer) videoContainer.classList.remove('hidden')
       if (btn) btn.textContent = 'Stop preview'
       if (status) { status.textContent = 'Loading...'; status.style.color = '' }
@@ -1258,8 +1261,14 @@ class ScreenRecorder {
         if (status) { status.textContent = '✓ Working'; status.style.color = '#22c55e' }
         this.refreshMediaDevices({ requestPermission: false })
       } catch (error) {
-        if (status) { status.textContent = '✗ Error'; status.style.color = '#ef4444' }
+        const isInUse = error.name === 'NotReadableError' || error.name === 'AbortError'
+        const isDenied = error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError'
+        let message = '✗ Access error'
+        if (isInUse) message = '⚠ Camera in use by another app'
+        else if (isDenied) message = '✗ Permission denied'
+        if (status) { status.textContent = message; status.style.color = '#f59e0b' }
         console.error('Webcam access error:', error)
+        // webcamPreviewActive stays true so "Stop preview" button works
       }
     }
   }
@@ -1270,6 +1279,7 @@ class ScreenRecorder {
       this.webcamStream.getTracks().forEach(track => track.stop())
       this.webcamStream = null
     }
+    this.webcamPreviewActive = false
     if (video) video.srcObject = null
     const status = document.getElementById('webcamStatus')
     if (status) { status.textContent = 'Loading...'; status.style.color = '' }
