@@ -82,11 +82,11 @@ window.LocalVideosManager = class LocalVideosManager {
         <div class="hc-actions">
           <button class="hc-btn hc-open-primary lv-open-btn" title="Upload / manage this recording">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-            Subir
+            Upload
           </button>
           <button class="hc-btn lv-folder-btn" title="Open folder">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            Carpeta
+            Folder
           </button>
           <button class="hc-btn hc-remove-btn lv-delete-btn" title="Delete recording">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
@@ -99,10 +99,10 @@ window.LocalVideosManager = class LocalVideosManager {
     try {
       const res = await window.electronAPI.localRecordingsOpenInSavePanel(filePath)
       if (!res || !res.success) {
-        alert('No se pudo abrir la grabación: ' + (res?.error || 'Error desconocido'))
+        alert('Could not open recording: ' + (res?.error || 'Unknown error'))
       }
     } catch (err) {
-      alert('Error al abrir la grabación: ' + err.message)
+      alert('Error opening recording: ' + err.message)
     }
   }
 
@@ -113,7 +113,7 @@ window.LocalVideosManager = class LocalVideosManager {
   }
 
   async _delete(filePath, fileName, cardEl) {
-    if (!confirm(`¿Eliminar "${fileName}" de forma permanente?`)) return
+    if (!confirm(`Delete "${fileName}" permanently?`)) return
 
     try {
       const res = await window.electronAPI.localRecordingsDelete(filePath)
@@ -122,10 +122,10 @@ window.LocalVideosManager = class LocalVideosManager {
         // If list is now empty, refresh to show the empty state
         if (!this.container.querySelector('.lv-card')) this.refresh()
       } else {
-        alert('No se pudo eliminar: ' + (res?.error || 'Error'))
+        alert('Could not delete: ' + (res?.error || 'Error'))
       }
     } catch (err) {
-      alert('Error al eliminar: ' + err.message)
+      alert('Error deleting: ' + err.message)
     }
   }
 
@@ -143,11 +143,11 @@ window.LocalVideosManager = class LocalVideosManager {
       const now = new Date()
       const diffMs = now - d
       const diffMins = Math.floor(diffMs / 60000)
-      if (diffMins < 1) return 'Ahora'
-      if (diffMins < 60) return `hace ${diffMins}m`
+      if (diffMins < 1) return 'Just now'
+      if (diffMins < 60) return `${diffMins}m ago`
       const diffHrs = Math.floor(diffMins / 60)
-      if (diffHrs < 24) return `hace ${diffHrs}h`
-      return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
+      if (diffHrs < 24) return `${diffHrs}h ago`
+      return d.toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })
     } catch {
       return ''
     }
