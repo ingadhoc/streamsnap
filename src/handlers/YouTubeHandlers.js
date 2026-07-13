@@ -131,11 +131,8 @@ class YouTubeHandlers {
           uploadOptions
         )
 
-        if (result.success && tempPath) {
-          try {
-            await fs.unlink(tempPath)
-          } catch (e) {}
-        }
+        // Do NOT delete the local file after upload — recordings are kept
+        // permanently in the save folder for access from the Grabaciones tab.
 
         return result
       } catch (error) {

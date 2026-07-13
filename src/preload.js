@@ -26,12 +26,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   saveVideo: videoData => ipcRenderer.invoke('save-video', videoData),
   setRecordedVideo: data => ipcRenderer.invoke('set-recorded-video', data),
-  saveRecordedVideoToTemp: (blob, duration, options) =>
-    ipcRenderer.invoke('save-recorded-video-to-temp', blob, duration, options),
   discardRecordedVideo: () => ipcRenderer.invoke('discard-recorded-video'),
   setRecordedDuration: seconds => ipcRenderer.invoke('set-recorded-duration', seconds),
   getMainWindowData: () => ipcRenderer.invoke('get-main-window-data'),
   getRecordedDuration: () => ipcRenderer.invoke('get-recorded-duration'),
+
+  // Streaming-to-disk recording (replaces saveRecordedVideoToTemp)
+  startRecordingFile: options => ipcRenderer.invoke('start-recording-file', options),
+  appendRecordingChunk: chunk => ipcRenderer.invoke('append-recording-chunk', chunk),
+  finishRecordingFile: options => ipcRenderer.invoke('finish-recording-file', options),
+
+  // Local recordings library
+  localRecordingsList: () => ipcRenderer.invoke('local-recordings:list'),
+  localRecordingsOpenInSavePanel: filePath =>
+    ipcRenderer.invoke('local-recordings:open-in-save-panel', filePath),
+  localRecordingsDelete: filePath => ipcRenderer.invoke('local-recordings:delete', filePath),
 
   getSaveOptions: () => {
     try {
@@ -95,10 +104,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   youtubeGetChannelInfo: accountId => ipcRenderer.invoke('youtube-get-channel-info', accountId),
   youtubeGetPlaylists: accountId => ipcRenderer.invoke('youtube-get-playlists', accountId),
 
-  selectFolder: () => ipcRenderer.invoke('select-folder'),
-
   saveToDrive: options => ipcRenderer.invoke('save-to-drive', options),
-  saveToLocal: options => ipcRenderer.invoke('save-to-local', options),
 
   recoveryListVideos: () => ipcRenderer.invoke('recovery:list-videos'),
   recoveryRecoverVideo: (filePath, destinationPath) =>

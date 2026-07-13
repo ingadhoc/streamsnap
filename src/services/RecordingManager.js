@@ -10,6 +10,9 @@ class RecordingManager {
     this.currentShortcuts = {}
     this.recordedVideoDuration = null
     this.platform = process.platform
+    // Active write stream for the current recording (streaming-to-disk approach)
+    this.recordingWriteStream = null
+    this.recordingChunkCount = 0
   }
 
   async getDesktopSources() {
@@ -299,6 +302,31 @@ class RecordingManager {
     this.recordedVideoData = null
     this.recordedVideoPath = null
     this.recordedVideoDuration = null
+  }
+
+  setRecordingWriteStream(stream) {
+    this.recordingWriteStream = stream
+  }
+
+  getRecordingWriteStream() {
+    return this.recordingWriteStream
+  }
+
+  incrementChunkCount() {
+    this.recordingChunkCount++
+  }
+
+  resetChunkCount() {
+    this.recordingChunkCount = 0
+  }
+
+  getChunkCount() {
+    return this.recordingChunkCount
+  }
+
+  clearRecordingWriteStream() {
+    this.recordingWriteStream = null
+    this.recordingChunkCount = 0
   }
 
   registerRecordingShortcuts() {

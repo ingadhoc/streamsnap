@@ -11,8 +11,8 @@ class StorageService {
 
   getDefaultSaveFolder() {
     const { app } = require('electron')
-    const downloadsPath = app.getPath('downloads')
-    return path.join(downloadsPath, 'StreamSnap Recordings')
+    const videosPath = app.getPath('videos')
+    return path.join(videosPath, 'StreamSnap Recordings')
   }
 
   ensureDefaultFolderExists() {

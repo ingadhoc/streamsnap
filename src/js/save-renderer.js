@@ -3,7 +3,6 @@ class SaveVideoHandler {
     this.videoBlob = null
     this.videoObjectUrl = null
     this.saveOptions = {}
-    this.selectedLocalFolder = null
     this.activeAccounts = []
     this.activeYouTubeAccounts = []
     this.selectedAccounts = new Map()
@@ -132,8 +131,6 @@ class SaveVideoHandler {
   initializeUI() {
     const discardBtn = document.getElementById('discardBtn')
     const fileNameInput = document.getElementById('fileName')
-    const localSaveBtn = document.getElementById('localSaveBtn')
-    const browseLocalBtn = document.getElementById('browseLocalBtn')
     const manageDriveAccountsBtn = document.getElementById('savePanelManageDriveBtn') || document.getElementById('manageDriveAccountsBtn')
     const addMoreAccountsBtn = document.getElementById('addMoreAccountsBtn')
     const manageYouTubeAccountsBtn = document.getElementById('savePanelManageYouTubeBtn') || document.getElementById('manageYouTubeAccountsBtn')
@@ -141,8 +138,6 @@ class SaveVideoHandler {
     const editVideoBtn = document.getElementById('editVideoBtn')
 
     discardBtn.addEventListener('click', () => this.discardVideo())
-    localSaveBtn.addEventListener('click', () => this.saveToLocal())
-    browseLocalBtn.addEventListener('click', () => this.browseLocalFolder())
     manageDriveAccountsBtn.addEventListener('click', () => this.manageDriveAccounts())
 
     if (addMoreAccountsBtn) {
@@ -292,34 +287,12 @@ class SaveVideoHandler {
   }
 
   async configureSaveOptions() {
-    const localSection = document.getElementById('localSaveSection')
     const driveAccountsSection = document.getElementById('driveAccountsSection')
     const noDriveAccountsSection = document.getElementById('noDriveAccountsSection')
     const youtubeAccountsSection = document.getElementById('youtubeAccountsSection')
     const noYouTubeAccountsSection = document.getElementById('noYouTubeAccountsSection')
     const addMoreAccountsBtn = document.getElementById('addMoreAccountsBtn')
     const addMoreYouTubeAccountsBtn = document.getElementById('addMoreYouTubeAccountsBtn')
-
-    if (this.saveOptions.showLocalOption !== false) {
-      localSection.classList.remove('hidden')
-
-      try {
-        const mainSettings = JSON.parse(localStorage.getItem('streamsnap-settings') || '{}')
-        const defaultFolder = this.saveOptions.defaultLocalFolder || mainSettings.saveFolderPath
-
-        if (defaultFolder) {
-          document.getElementById('localFolderPath').value = defaultFolder
-          this.selectedLocalFolder = defaultFolder
-        }
-      } catch (e) {
-        if (this.saveOptions.defaultLocalFolder) {
-          document.getElementById('localFolderPath').value = this.saveOptions.defaultLocalFolder
-          this.selectedLocalFolder = this.saveOptions.defaultLocalFolder
-        }
-      }
-    } else {
-      localSection.classList.add('hidden')
-    }
 
     const showDriveOption = this.saveOptions.showDriveOption !== false
     const showYouTubeOption = this.saveOptions.showYouTubeOption !== false
@@ -473,7 +446,10 @@ class SaveVideoHandler {
       let fileName = document.getElementById('fileName').value.trim() || 'recording'
       fileName = this.ensureOutputExtension(fileName)
 
-      if (!this.videoBlob) {
+      // With the streaming approach the video is already on disk — no in-memory
+      // blob needed. The main-process handler reads from recordedVideoPath.
+      const hasTempPath = !!(this.saveOptions && this.saveOptions.tempVideoPath)
+      if (!hasTempPath && !this.videoBlob) {
         this.showError('No video data available')
         return
       }
@@ -489,12 +465,11 @@ class SaveVideoHandler {
       const savingText = document.getElementById('savingText')
       savingText.textContent = `Saving to ${account.displayName || account.email || 'Drive account'}...`
 
-      const videoData = await this.prepareVideoData()
-
+      // Pass null for videoData — the handler reads from disk via recordedVideoPath.
       const result = await window.electronAPI.saveToDriveAccount({
         accountId: account.id,
         folderId: selectedFolderId,
-        videoData: videoData,
+        videoData: null,
         fileName: fileName
       })
 
@@ -567,68 +542,6 @@ class SaveVideoHandler {
     }
   }
 
-  async saveToLocal() {
-    try {
-      let fileName = document.getElementById('fileName').value.trim() || 'recording'
-      fileName = this.ensureOutputExtension(fileName)
-
-      if (!this.videoBlob) {
-        this.showError('No video data available')
-        return
-      }
-
-      let folder = this.selectedLocalFolder
-      if (!folder) {
-        const result = await window.electronAPI.selectFolder()
-        if (!result || !result.folderPath) return
-        folder = result.folderPath
-        this.selectedLocalFolder = folder
-      }
-
-      this.showSavingState(true)
-      const savingText = document.getElementById('savingText')
-      savingText.textContent = 'Saving to computer...'
-
-      const videoData = await this.prepareVideoData()
-
-      const result = await window.electronAPI.saveToLocal({
-        videoData,
-        folderPath: folder,
-        fileName
-      })
-
-      this.showSavingState(false)
-
-      if (result && result.success) {
-        this.addToHistory({
-          title: fileName,
-          type: 'local',
-          filePath: result.filePath || `${folder}/${fileName}`,
-          account: 'This computer'
-        })
-
-        this.showLocalSaveSuccessModal(result.filePath || `${folder}/${fileName}`, fileName)
-      } else {
-        this.showError('Failed to save video locally')
-      }
-    } catch (error) {
-      this.showSavingState(false)
-      this.showError('Failed to save video')
-    }
-  }
-
-  async browseLocalFolder() {
-    try {
-      const result = await window.electronAPI.selectFolder()
-      if (result && result.folderPath) {
-        this.selectedLocalFolder = result.folderPath
-        document.getElementById('localFolderPath').value = result.folderPath
-      }
-    } catch (error) {
-      this.showError('Failed to select folder')
-    }
-  }
-
   async openVideoEditor() {
     try {
       if (!window.electronAPI || !window.electronAPI.openVideoEditor) {
@@ -675,12 +588,59 @@ class SaveVideoHandler {
       const durationSpan = document.getElementById('videoDuration')
       const sizeSpan = document.getElementById('videoSize')
 
+      // Prefer file:// URL from saveOptions — no large buffer in renderer memory.
+      const tempPath = this.saveOptions && this.saveOptions.tempVideoPath
+      if (tempPath) {
+        if (this.videoObjectUrl) {
+          URL.revokeObjectURL(this.videoObjectUrl)
+          this.videoObjectUrl = null
+        }
+        this.videoBlob = null
+
+        // Use file:// URL for efficient preview (avoids loading hundreds of MB
+        // into renderer memory for video files > a few minutes).
+        video.src = 'file://' + tempPath
+        video.load()
+
+        // Duration from saveOptions if already computed, else read from video element.
+        const recordedDuration = this.saveOptions && this.saveOptions.recordedDuration
+        if (recordedDuration && recordedDuration > 0) {
+          const minutes = Math.floor(recordedDuration / 60)
+          const seconds = Math.floor(recordedDuration % 60)
+          durationSpan.textContent = `Duration: ${minutes}:${seconds.toString().padStart(2, '0')}`
+        } else {
+          video.addEventListener('loadedmetadata', () => {
+            if (video.duration && !isNaN(video.duration) && video.duration !== Infinity) {
+              const dur = Math.round(video.duration)
+              const m = Math.floor(dur / 60)
+              const s = dur % 60
+              durationSpan.textContent = `Duration: ${m}:${s.toString().padStart(2, '0')}`
+            } else {
+              durationSpan.textContent = 'Duration: --:--'
+            }
+          }, { once: true })
+        }
+
+        // Get file size from metadata (light IPC call — just fs.stat, not readFile).
+        try {
+          if (window.electronAPI && window.electronAPI.getMainWindowData) {
+            const data = await window.electronAPI.getMainWindowData()
+            const buf = data && data.recordedVideoBlob
+            if (buf) {
+              const bytes = buf.byteLength || buf.length || 0
+              sizeSpan.textContent = `Size: ${(bytes / (1024 * 1024)).toFixed(1)} MB`
+            }
+          }
+        } catch (e) {
+          sizeSpan.textContent = 'Size: --'
+        }
+        return
+      }
+
+      // Fallback for cases where saveOptions.tempVideoPath is not yet set.
       if (window.electronAPI && window.electronAPI.getMainWindowData) {
         try {
-          const data = window.__isMainWindow && window.__currentRecordingData
-            ? window.__currentRecordingData
-            : await window.electronAPI.getMainWindowData()
-          
+          const data = await window.electronAPI.getMainWindowData()
           const videoBlob = data && (data.recordedVideoBlob || data.videoBlob)
 
           if (videoBlob) {
@@ -702,7 +662,7 @@ class SaveVideoHandler {
                 } else {
                   durationSpan.textContent = 'Duration: --:--'
                 }
-              })
+              }, { once: true })
             }
 
             const sizeInMB = ((videoBlob.size ?? videoBlob.byteLength ?? 0) / (1024 * 1024)).toFixed(1)
@@ -1100,11 +1060,10 @@ class SaveVideoHandler {
       const savingText = document.getElementById('savingText')
       savingText.textContent = `Uploading to ${account.channelName || 'YouTube'}...`
 
-      const videoData = await this.prepareVideoData()
-
+      // Pass null for videoData — the handler reads from disk via recordedVideoPath.
       const uploadOptions = {
         accountId: account.id,
-        videoData: videoData,
+        videoData: null,
         title,
         description,
         privacy: account.privacy || 'private'

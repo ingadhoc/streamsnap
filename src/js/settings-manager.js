@@ -24,7 +24,6 @@ class SettingsManager {
       drive: { accessToken: '', folderId: '', folderName: '', videoPrivacy: 'restricted' },
       enableCountdown: true,
       countdownDuration: 5,
-      saveFolderPath: '',
 
       launchOnStartup: false
     }
@@ -115,18 +114,6 @@ class SettingsManager {
     const countdownOptions = document.getElementById('countdownOptions')
     if (countdownOptions) {
       countdownOptions.style.display = this.settings.enableCountdown ? 'block' : 'none'
-    }
-  }
-
-  updateSaveFolderDisplay() {
-    const saveFolderDisplay = document.getElementById('saveFolderDisplay')
-    if (saveFolderDisplay) {
-      if (this.settings.saveFolderPath) {
-        const folderName = this.settings.saveFolderPath.split('/').pop() || this.settings.saveFolderPath
-        saveFolderDisplay.textContent = `Selected: ${folderName}`
-      } else {
-        saveFolderDisplay.textContent = 'Choose where to save recordings locally'
-      }
     }
   }
 

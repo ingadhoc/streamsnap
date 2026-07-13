@@ -16,7 +16,6 @@ class ScreenRecorder {
     this._onMediaDeviceChange = null
 
     this.settingsManager.loadSettings()
-    this.settingsManager.updateSaveFolderDisplay()
 
     this.initializeUI()
     this.setupEventListeners()
@@ -93,7 +92,6 @@ class ScreenRecorder {
     this.setupAudioControls()
 
     this.setupCountdownControls()
-    this.setupFolderControls()
     this.setupDriveControls()
   }
 
@@ -385,22 +383,6 @@ class ScreenRecorder {
     })
   }
 
-  setupFolderControls() {
-    const browseFolderBtn = document.getElementById('browseFolderBtn')
-    if (browseFolderBtn) {
-      browseFolderBtn.addEventListener('click', async () => {
-        try {
-          const result = await window.electronAPI.selectFolder()
-          if (result && result.folderPath) {
-            this.settingsManager.settings.saveFolderPath = result.folderPath
-            this.settingsManager.saveSettings()
-            this.settingsManager.updateSaveFolderDisplay()
-          }
-        } catch (error) {}
-      })
-    }
-  }
-
   setupDriveControls() {
     const manageDriveAccountsBtn = document.getElementById('manageDriveAccountsBtn')
     const driveAutoSaveEnabledEl = document.getElementById('driveAutoSaveEnabled')
@@ -586,6 +568,8 @@ class ScreenRecorder {
       window.electronAPI.onDiscardRecording(() => {
         this.recordingState.isDiscarding = true
         this.recordingState.recordedChunks = []
+        // Prevent watchdog from triggering handleRecordingStop after a discard.
+        this._stopFinalized = true
 
         if (this.recordingState.mediaRecorder && this.recordingState.mediaRecorder.state !== 'inactive') {
           this.recordingState.mediaRecorder.ondataavailable = null
@@ -702,6 +686,9 @@ class ScreenRecorder {
   async startRecordingWithSource(source) {
     try {
       this.recordingState.reset()
+      // Clear any stale recording data from a previous session
+      window.__currentRecordingData = null
+
       const captureSource = await this.resolveSourceForCapture(source)
       this.recordingState.selectedSource = captureSource
 
@@ -720,6 +707,19 @@ class ScreenRecorder {
 
       this.recordingState.stream = finalStream
       await this.setupMediaRecorder(finalStream)
+
+      // Open the destination file before the first chunk arrives.
+      const mimeType = this.recordingState.mediaRecorder
+        ? this.recordingState.mediaRecorder.mimeType || 'video/webm'
+        : 'video/webm'
+      const fileResult = await window.electronAPI.startRecordingFile({ mimeType })
+      if (!fileResult || !fileResult.success) {
+        throw new Error(fileResult?.error || 'Failed to open recording file')
+      }
+
+      // Chunk queue: ensures chunks are written to disk in order.
+      this._chunkQueue = Promise.resolve()
+      this._stopFinalized = false
 
       this.recordingState.mediaRecorder.start(1000)
       this.recordingState.startTimer()
@@ -939,7 +939,18 @@ class ScreenRecorder {
     this.recordingState.recordedChunks = []
 
     this.recordingState.mediaRecorder.ondataavailable = event => {
-      if (event.data.size > 0) this.recordingState.recordedChunks.push(event.data)
+      if (event.data.size > 0) {
+        // Stream each chunk directly to disk via IPC. Chunks are enqueued
+        // sequentially so their order on disk is guaranteed. No blob is kept
+        // in renderer memory.
+        this._chunkQueue = (this._chunkQueue || Promise.resolve()).then(() =>
+          event.data.arrayBuffer().then(buf => {
+            if (window.electronAPI && window.electronAPI.appendRecordingChunk) {
+              return window.electronAPI.appendRecordingChunk(new Uint8Array(buf))
+            }
+          }).catch(() => {})
+        )
+      }
     }
 
     this.recordingState.mediaRecorder.onstop = () => {
@@ -975,17 +986,25 @@ class ScreenRecorder {
 
   async stopRecording(fromFloatingWindow = false) {
     if (this.recordingState.mediaRecorder && this.recordingState.isRecording) {
+      this._stopFinalized = false
+
       this.recordingState.mediaRecorder.stop()
       this.recordingState.isRecording = false
       this.recordingState.isPaused = false
 
-      // Stream teardown and cleanup() are deferred to handleRecordingStop()
-      // so that an async WebCodecs encoder/muxer can fully finalize before
-      // the underlying tracks are stopped.
-
       if (!fromFloatingWindow) {
         await window.electronAPI.stopRecording()
       }
+
+      // Watchdog: if MediaRecorder.onstop doesn't fire within 8 s (e.g. a
+      // driver/OS glitch), force-finalize so the UI never stays stuck on
+      // "Recording...". Because chunks were already written to disk the file
+      // is complete even without a clean onstop.
+      setTimeout(() => {
+        if (!this._stopFinalized) {
+          this.handleRecordingStop()
+        }
+      }, 8000)
     }
   }
 
@@ -997,10 +1016,16 @@ class ScreenRecorder {
       this.recordingState.isRecording = false
       this.recordingState.isPaused = false
 
+      // Stop accepting new chunks from ondataavailable and suppress onstop so
+      // handleRecordingStop isn't called (we go through the discard path instead).
       if (this.recordingState.mediaRecorder.state !== 'inactive') {
+        this.recordingState.mediaRecorder.ondataavailable = null
         this.recordingState.mediaRecorder.onstop = null
         this.recordingState.mediaRecorder.stop()
       }
+
+      // Mark as finalized so the watchdog doesn't re-enter handleRecordingStop.
+      this._stopFinalized = true
 
       if (this.recordingState.stream) {
         this.recordingState.stream.getTracks().forEach(track => {
@@ -1015,6 +1040,7 @@ class ScreenRecorder {
       this.uiManager.enableStartButton()
 
       try {
+        // discardRecording IPC also aborts the write stream and deletes the file.
         await window.electronAPI.discardRecording()
         await window.electronAPI.showMainWindow()
       } catch (error) {}
@@ -1022,7 +1048,11 @@ class ScreenRecorder {
   }
 
   async handleRecordingStop() {
-    // Tear down the stream now that recording is fully complete (or discarded).
+    // Anti-double-execution guard (watchdog + onstop can both call this).
+    if (this._stopFinalized) return
+    this._stopFinalized = true
+
+    // Tear down the media stream.
     this.recordingState.cleanup()
 
     if (this.recordingState.isDiscarding) {
@@ -1033,51 +1063,33 @@ class ScreenRecorder {
       return
     }
 
-    if (this.recordingState.recordedChunks.length === 0) {
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      if (this.recordingState.recordedChunks.length === 0) {
-        this.uiManager.updateRecordingStatus('Recording discarded - no data captured', 'ready')
-        this.uiManager.enableStartButton()
-        return
-      }
-    }
+    this.uiManager.updateRecordingStatus('Processing recording...', 'recording')
+    this.uiManager.disableStartButton()
 
     try {
-      const mimeType = this.recordingState.mediaRecorder ? this.recordingState.mediaRecorder.mimeType : 'video/webm'
-      const blob = new Blob(this.recordingState.recordedChunks, { type: mimeType })
-
-      this.uiManager.updateRecordingStatus('Processing recording...', 'recording')
-      this.uiManager.disableStartButton()
-
-      const computedDurationSeconds = this.recordingState.getDuration()
-      let includedDuration = computedDurationSeconds
-
-      if (includedDuration == null) {
-        try {
-          const durRes = await window.electronAPI.getRecordedDuration()
-          if (durRes && durRes.success && typeof durRes.duration !== 'undefined') {
-            includedDuration = durRes.duration
-          }
-        } catch (e) {}
+      // Wait for all in-flight chunk IPC calls to complete before closing
+      // the write stream. This ensures every chunk lands on disk in order.
+      if (this._chunkQueue) {
+        await this._chunkQueue
       }
 
-      const arrayBuffer = await blob.arrayBuffer()
-      const uint8Array = new Uint8Array(arrayBuffer)
+      const duration = this.recordingState.getDuration()
 
-      const result = await window.electronAPI.saveRecordedVideoToTemp(uint8Array, includedDuration, { mimeType })
-
-      if (window.__isMainWindow) {
-        window.__currentRecordingData = {
-            recordedVideoBlob: blob,
-            recordedDuration: includedDuration,
-            tempVideoPath: result?.tempPath
-        };
-      }
+      const result = await window.electronAPI.finishRecordingFile({ duration })
 
       if (!result || !result.success) {
+        // "No data captured" comes back as an error from finishRecordingFile.
+        if (result?.error === 'No data captured') {
+          this.uiManager.updateRecordingStatus('Recording discarded - no data captured', 'ready')
+          this.uiManager.enableStartButton()
+          return
+        }
         throw new Error(result?.error || 'Failed to save recording')
       }
+
+      // Don't keep a blob in renderer memory. The save panel reads the file
+      // from disk using the tempVideoPath in saveOptions.
+      window.__currentRecordingData = null
 
       this.uiManager.hideConversionProgress()
       if (result.autoSaved) {
@@ -1090,14 +1102,15 @@ class ScreenRecorder {
       } else {
         this.uiManager.updateRecordingStatus('Recording complete', 'complete')
       }
-      this.uiManager.enableStartButton()
     } catch (error) {
       this.uiManager.hideConversionProgress()
       this.uiManager.updateRecordingStatus('Error saving recording', 'ready')
-      this.uiManager.enableStartButton()
       alert(
         `Failed to save recording: ${error.message || 'Unknown error'}\n\nPlease try again or contact support if the issue persists.`
       )
+    } finally {
+      // Always re-enable the start button so the UI never stays stuck.
+      this.uiManager.enableStartButton()
     }
   }
 

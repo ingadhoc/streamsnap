@@ -137,6 +137,15 @@ class RecordingHandlers {
       try {
         this.app.broadcastToWindows('discard-recording-event')
         await new Promise(resolve => setTimeout(resolve, 50))
+
+        // Close any active write stream. The partial file is kept — recordings
+        // are never deleted automatically, only by the user from the Grabaciones tab.
+        const writeStream = this.app.recordingManager.getRecordingWriteStream()
+        if (writeStream) {
+          writeStream.destroy()
+          this.app.recordingManager.clearRecordingWriteStream()
+        }
+
         this.app.recordingManager.stopRecording()
         this.app.recordingManager.clearRecordedVideoData()
         await new Promise(resolve => setTimeout(resolve, 250))
@@ -148,6 +157,89 @@ class RecordingHandlers {
           this.app.windowManager.showMainWindow()
         })
         return { success: true }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
+
+    // ── Streaming-to-disk handlers ─────────────────────────────────────────
+    // These replace the old "accumulate in memory → bulk IPC transfer" approach.
+    // Each MediaRecorder chunk (~300 KB) is appended directly to the final file,
+    // so the UI never blocks on a large IPC transfer at stop-time.
+
+    ipcMain.handle('start-recording-file', async (event, options = {}) => {
+      const fs = require('fs')
+      const path = require('path')
+
+      try {
+        const saveFolder = this.app.storageService.getDefaultSaveFolderPath()
+        await require('fs').promises.mkdir(saveFolder, { recursive: true })
+
+        const mimeType = typeof options.mimeType === 'string' ? options.mimeType : ''
+        const ext = mimeType.includes('mp4') ? 'mp4' : 'webm'
+        const fileName = this.createAutoSaveFileName(ext)
+        const filePath = path.join(saveFolder, fileName)
+
+        const writeStream = fs.createWriteStream(filePath)
+        this.app.recordingManager.setRecordingWriteStream(writeStream)
+        this.app.recordingManager.setRecordedVideoPath(filePath)
+        this.app.recordingManager.resetChunkCount()
+
+        return { success: true, filePath }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
+
+    ipcMain.handle('append-recording-chunk', async (event, chunk) => {
+      try {
+        const writeStream = this.app.recordingManager.getRecordingWriteStream()
+        if (!writeStream || writeStream.destroyed) {
+          return { success: false, error: 'No active write stream' }
+        }
+        const ok = writeStream.write(Buffer.from(chunk))
+        this.app.recordingManager.incrementChunkCount()
+        // If the stream signals backpressure (ok === false), wait for drain.
+        if (!ok) {
+          await new Promise(resolve => writeStream.once('drain', resolve))
+        }
+        return { success: true }
+      } catch (error) {
+        return { success: false, error: error.message }
+      }
+    })
+
+    ipcMain.handle('finish-recording-file', async (event, options = {}) => {
+      const fs = require('fs').promises
+
+      try {
+        const writeStream = this.app.recordingManager.getRecordingWriteStream()
+        const filePath = this.app.recordingManager.getRecordedVideoPath()
+        const chunkCount = this.app.recordingManager.getChunkCount()
+
+        if (!writeStream || !filePath) {
+          return { success: false, error: 'No active recording file' }
+        }
+
+        // Close the write stream; wait for the 'finish' event.
+        await new Promise((resolve, reject) => {
+          writeStream.once('error', reject)
+          writeStream.end(() => resolve())
+        })
+        this.app.recordingManager.clearRecordingWriteStream()
+
+        // If no chunks were written the file is empty — discard it.
+        if (chunkCount === 0) {
+          try { await fs.unlink(filePath) } catch (e) {}
+          this.app.recordingManager.clearRecordedVideoData()
+          return { success: false, error: 'No data captured' }
+        }
+
+        const { duration } = options
+        const path = require('path')
+        const ext = path.extname(filePath).replace('.', '') || 'webm'
+
+        return await this.handlePostTempSave({ tempPath: filePath, duration, outputFormat: ext })
       } catch (error) {
         return { success: false, error: error.message }
       }
@@ -199,27 +291,10 @@ class RecordingHandlers {
       }
     })
 
-    ipcMain.handle('save-recorded-video-to-temp', async (event, videoBuffer, duration, options = {}) => {
-      const fs = require('fs').promises
-      const path = require('path')
-      const os = require('os')
-
-      try {
-        const tempDir = path.join(os.tmpdir(), 'streamsnap-recordings')
-        await fs.mkdir(tempDir, { recursive: true })
-
-        const timestamp = Date.now()
-        const mimeType = typeof options.mimeType === 'string' ? options.mimeType : ''
-        const outputFormat = mimeType.includes('mp4') ? 'mp4' : 'webm'
-        const tempPath = path.join(tempDir, `recording-${timestamp}.${outputFormat}`)
-
-        const buffer = Buffer.from(videoBuffer)
-        await fs.writeFile(tempPath, buffer)
-
-        return await this.handlePostTempSave({ tempPath, duration, outputFormat })
-      } catch (error) {
-        return { success: false, error: error.message }
-      }
+    // Kept as a no-op stub. The new streaming-to-disk approach uses
+    // start-recording-file / append-recording-chunk / finish-recording-file instead.
+    ipcMain.handle('save-recorded-video-to-temp', async () => {
+      return { success: false, error: 'Deprecated: use streaming handlers instead' }
     })
 
     ipcMain.handle('set-recorded-duration', (event, seconds) => {
@@ -241,17 +316,9 @@ class RecordingHandlers {
     })
 
     ipcMain.handle('discard-recorded-video', async () => {
-      const fs = require('fs').promises
-
       try {
-        const tempPath = this.app.recordingManager.getRecordedVideoPath()
-
-        if (tempPath) {
-          try {
-            await fs.unlink(tempPath)
-          } catch (e) {}
-        }
-
+        // Keep the file — it's already saved in the recordings folder.
+        // Just clear the in-memory reference so the manager is clean.
         this.app.recordingManager.clearRecordedVideoData()
         return { success: true }
       } catch (error) {
@@ -273,20 +340,20 @@ class RecordingHandlers {
     ipcMain.handle('set-trimmed-video', async (event, videoBuffer, duration, options = {}) => {
       const fs = require('fs').promises
       const path = require('path')
-      const os = require('os')
 
       try {
         if (!videoBuffer || !videoBuffer.length) {
           return { success: false, error: 'No trimmed video data received' }
         }
 
-        const tempDir = path.join(os.tmpdir(), 'streamsnap-recordings')
-        await fs.mkdir(tempDir, { recursive: true })
+        // Write to the permanent save folder (not /tmp) so the trimmed file is preserved.
+        const saveDir = this.app.storageService.getDefaultSaveFolderPath()
+        await fs.mkdir(saveDir, { recursive: true })
 
         const timestamp = Date.now()
         const mimeType = typeof options.mimeType === 'string' ? options.mimeType : ''
         const outputFormat = mimeType.includes('mp4') ? 'mp4' : 'webm'
-        const tempPath = path.join(tempDir, `recording-${timestamp}-trimmed.${outputFormat}`)
+        const tempPath = path.join(saveDir, `recording-${timestamp}-trimmed.${outputFormat}`)
 
         const buffer = Buffer.from(videoBuffer)
         await fs.writeFile(tempPath, buffer)

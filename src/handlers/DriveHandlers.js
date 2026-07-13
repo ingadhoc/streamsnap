@@ -158,11 +158,9 @@ class DriveHandlers {
 
         const result = await this.app.driveService.uploadVideo(accountId, folderId, dataToUpload, fileName, privacy)
 
-        if (result.success && tempPath) {
-          try {
-            await fs.unlink(tempPath)
-          } catch (e) {}
-        }
+        // Do NOT delete the local file after upload — recordings are now kept
+        // permanently in the save folder so users can access them from the
+        // Grabaciones tab regardless of where they uploaded.
 
         return result
       } catch (error) {
