@@ -235,6 +235,9 @@ class RecordingHandlers {
           return { success: false, error: 'No data captured' }
         }
 
+        // Sweep old recordings in the background — never blocks saving the current one.
+        this.app.runAutoDeleteSweep().catch(() => {})
+
         const { duration } = options
         const path = require('path')
         const ext = path.extname(filePath).replace('.', '') || 'webm'

@@ -25,6 +25,9 @@ class SettingsManager {
       enableCountdown: true,
       countdownDuration: 5,
 
+      autoDeleteRecordingsEnabled: true,
+      autoDeleteRecordingsDays: 15,
+
       launchOnStartup: false
     }
   }
@@ -62,6 +65,9 @@ class SettingsManager {
     if (typeof this.settings.preferredWebcamId !== 'string' || !this.settings.preferredWebcamId.trim()) {
       this.settings.preferredWebcamId = 'default'
     }
+    if (![7, 15, 30].includes(Number(this.settings.autoDeleteRecordingsDays))) {
+      this.settings.autoDeleteRecordingsDays = 15
+    }
 
     this.updateUI()
     this.syncDefaults()
@@ -91,7 +97,14 @@ class SettingsManager {
     if (launchOnStartupEl) launchOnStartupEl.checked = this.settings.launchOnStartup === true
     const driveAutoSaveEnabledEl = document.getElementById('driveAutoSaveEnabled')
     if (driveAutoSaveEnabledEl) driveAutoSaveEnabledEl.checked = this.settings.driveAutoSaveEnabled === true
+
+    const autoDeleteEnabledEl = document.getElementById('autoDeleteRecordingsEnabled')
+    if (autoDeleteEnabledEl) autoDeleteEnabledEl.checked = this.settings.autoDeleteRecordingsEnabled !== false
+    const autoDeleteDaysEl = document.getElementById('autoDeleteRecordingsDays')
+    if (autoDeleteDaysEl) autoDeleteDaysEl.value = this.settings.autoDeleteRecordingsDays || 15
+
     this.updateCountdownOptionsVisibility()
+    this.updateAutoDeleteOptionsVisibility()
   }
 
   syncDefaults() {
@@ -114,6 +127,13 @@ class SettingsManager {
     const countdownOptions = document.getElementById('countdownOptions')
     if (countdownOptions) {
       countdownOptions.style.display = this.settings.enableCountdown ? 'block' : 'none'
+    }
+  }
+
+  updateAutoDeleteOptionsVisibility() {
+    const autoDeleteOptions = document.getElementById('autoDeleteRecordingsOptions')
+    if (autoDeleteOptions) {
+      autoDeleteOptions.style.display = this.settings.autoDeleteRecordingsEnabled !== false ? 'block' : 'none'
     }
   }
 

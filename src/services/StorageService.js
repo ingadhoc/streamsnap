@@ -222,6 +222,38 @@ class StorageService {
     return this.defaultSaveFolder
   }
 
+  async deleteRecordingsOlderThan(days) {
+    try {
+      if (!fs.existsSync(this.defaultSaveFolder)) {
+        return { cleaned: 0 }
+      }
+
+      const files = fs.readdirSync(this.defaultSaveFolder)
+      const recordings = files.filter(
+        file => file.toLowerCase().endsWith('.webm') || file.toLowerCase().endsWith('.mp4')
+      )
+
+      const maxAgeMs = days * 24 * 60 * 60 * 1000
+      const now = Date.now()
+      let cleaned = 0
+
+      for (const file of recordings) {
+        const filePath = path.join(this.defaultSaveFolder, file)
+        try {
+          const stats = fs.statSync(filePath)
+          if (now - stats.mtime.getTime() > maxAgeMs) {
+            fs.unlinkSync(filePath)
+            cleaned++
+          }
+        } catch (e) {}
+      }
+
+      return { cleaned }
+    } catch (error) {
+      return { cleaned: 0, error: error.message }
+    }
+  }
+
   setDefaultSaveFolder(folderPath) {
     this.defaultSaveFolder = folderPath
   }

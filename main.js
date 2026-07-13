@@ -83,6 +83,17 @@ class StreamSnapApp {
     return {}
   }
 
+  async runAutoDeleteSweep() {
+    try {
+      const settings = await this.getSettings()
+      if (!settings || settings.autoDeleteRecordingsEnabled === false) return
+      const days = [7, 15, 30].includes(Number(settings.autoDeleteRecordingsDays))
+        ? Number(settings.autoDeleteRecordingsDays)
+        : 15
+      await this.storageService.deleteRecordingsOlderThan(days)
+    } catch (e) {}
+  }
+
   broadcastToWindows(event, data = null) {
     try {
     } catch (e) {}
@@ -125,6 +136,8 @@ class StreamSnapApp {
       }
       await this.windowManager.createMainWindow(isHiddenLaunch)
       this.isInitialized = true
+
+      this.runAutoDeleteSweep().catch(() => {})
 
       try {
         let isAuth = false

@@ -93,6 +93,7 @@ class ScreenRecorder {
 
     this.setupCountdownControls()
     this.setupDriveControls()
+    this.setupAutoDeleteControls()
   }
 
   setupGeneralControls() {
@@ -381,6 +382,26 @@ class ScreenRecorder {
       this.settingsManager.settings.countdownDuration = parseInt(e.target.value)
       this.settingsManager.saveSettings()
     })
+  }
+
+  setupAutoDeleteControls() {
+    const autoDeleteEnabledEl = document.getElementById('autoDeleteRecordingsEnabled')
+    const autoDeleteDaysEl = document.getElementById('autoDeleteRecordingsDays')
+
+    if (autoDeleteEnabledEl) {
+      autoDeleteEnabledEl.addEventListener('change', e => {
+        this.settingsManager.settings.autoDeleteRecordingsEnabled = e.target.checked
+        this.settingsManager.saveSettings()
+        this.settingsManager.updateAutoDeleteOptionsVisibility()
+      })
+    }
+
+    if (autoDeleteDaysEl) {
+      autoDeleteDaysEl.addEventListener('change', e => {
+        this.settingsManager.settings.autoDeleteRecordingsDays = parseInt(e.target.value)
+        this.settingsManager.saveSettings()
+      })
+    }
   }
 
   setupDriveControls() {
