@@ -180,11 +180,11 @@ class UploadSuccessModal {
           const accountName = this.escapeHtml(upload.accountName || upload.accountEmail || 'Drive account')
           const folderName = this.escapeHtml(upload.folderName || 'Drive Folder')
           const fileName = this.escapeHtml(upload.fileName || 'Uploaded video')
-          const openBtn = upload.webViewLink
-            ? `<button data-link-index="${index}" class="btn btn-primary drive-modal-open-copy-btn" style="flex:0 0 auto; padding:8px 12px; font-size:12px;">Open & Copy</button>`
+          const actionBtns = upload.webViewLink
+            ? `<div style="display:flex; gap:6px; flex:0 0 auto;"><button type="button" data-link-index="${index}" class="btn btn-primary drive-modal-copy-btn" style="padding:8px 12px; font-size:12px; white-space:nowrap;">Copy Link</button><button type="button" data-link-index="${index}" class="btn btn-secondary drive-modal-open-btn" title="Open in browser" aria-label="Open in browser" style="padding:8px 10px; font-size:12px;">↗</button></div>`
             : ''
 
-          return `<div class="bg-white border border-gray-200 rounded-lg p-3"><div class="flex items-center justify-between gap-2"><div class="min-w-0"><p class="text-sm font-semibold text-gray-800 truncate">${accountName}</p><p class="text-xs text-gray-500 truncate">📁 ${folderName}</p><p class="text-xs text-gray-600 truncate mt-1">${fileName}</p></div>${openBtn}</div></div>`
+          return `<div class="bg-white border border-gray-200 rounded-lg p-3"><div class="flex items-center justify-between gap-2"><div class="min-w-0"><p class="text-sm font-semibold text-gray-800 truncate">${accountName}</p><p class="text-xs text-gray-500 truncate">📁 ${folderName}</p><p class="text-xs text-gray-600 truncate mt-1">${fileName}</p></div>${actionBtns}</div></div>`
         })
         .join('')
 
@@ -201,31 +201,35 @@ class UploadSuccessModal {
       document.body.appendChild(modalElement)
       this.modal = modalElement
 
-      this.modal.querySelectorAll('.drive-modal-open-copy-btn').forEach(btn => {
+      this.modal.querySelectorAll('.drive-modal-copy-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
           const index = Number(btn.getAttribute('data-link-index'))
           const item = safeUploads[index]
           const link = item && item.webViewLink
           if (!link) return
 
-          const [openResult, copyResult] = await Promise.allSettled([
-            window.electronAPI.openExternal(link),
-            navigator.clipboard.writeText(link)
-          ])
-
-          if (openResult.status === 'fulfilled' && copyResult.status === 'fulfilled') {
-            btn.textContent = 'Opened & Copied'
-          } else if (openResult.status === 'fulfilled') {
-            btn.textContent = 'Opened'
-          } else if (copyResult.status === 'fulfilled') {
-            btn.textContent = 'Copied'
-          } else {
+          try {
+            await navigator.clipboard.writeText(link)
+            btn.textContent = 'Copied!'
+          } catch (error) {
             btn.textContent = 'Failed'
           }
 
-          setTimeout(() => {
-            btn.textContent = 'Open & Copy'
+          clearTimeout(btn.__resetTimer)
+          btn.__resetTimer = setTimeout(() => {
+            btn.textContent = 'Copy Link'
           }, 1500)
+        })
+      })
+
+      this.modal.querySelectorAll('.drive-modal-open-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = Number(btn.getAttribute('data-link-index'))
+          const item = safeUploads[index]
+          const link = item && item.webViewLink
+          if (!link) return
+
+          Promise.resolve(window.electronAPI.openExternal(link)).catch(() => {})
         })
       })
 
