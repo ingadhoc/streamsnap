@@ -668,7 +668,16 @@ class RecordingHandlers {
       }
 
       if (sel && sel.display_index != null && displays[sel.display_index]) {
-        targetDisplay = displays[sel.display_index]
+        return displays[sel.display_index]
+      }
+
+      // Window sources never carry display_id/display_index — RecordingManager.getDesktopSources()
+      // only computes those for full-screen sources (id starting with 'screen:'). Falling back to
+      // the primary display would put the floating controls/webcam on the wrong monitor whenever
+      // the recorded window lives on a secondary display (ticket #123889). The cursor position is
+      // a reasonable proxy for "the monitor the user is working on".
+      if (sel && typeof sel.id === 'string' && !sel.id.startsWith('screen:')) {
+        return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
       }
     } catch (e) {}
     return targetDisplay

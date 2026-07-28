@@ -258,7 +258,13 @@ class WindowHandlers {
       }
 
       if (sel && sel.display_index != null && displays[sel.display_index]) {
-        targetDisplay = displays[sel.display_index]
+        return displays[sel.display_index]
+      }
+
+      // Window sources never carry display_id/display_index (see RecordingHandlers.getTargetDisplay
+      // for details) — fall back to the display nearest the cursor instead of always the primary one.
+      if (sel && typeof sel.id === 'string' && !sel.id.startsWith('screen:')) {
+        return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
       }
     } catch (e) {}
     return targetDisplay

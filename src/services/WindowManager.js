@@ -648,7 +648,10 @@ class WindowManager {
 
       this.windows.webcam.on('closed', () => {
         this.windows.webcam = null
+        this.stopWebcamTopReassertion()
       })
+
+      this.startWebcamTopReassertion()
 
       this.windows.webcam.once('ready-to-show', () => {
         try {
@@ -829,6 +832,34 @@ class WindowManager {
     if (this._dragInterval) {
       clearInterval(this._dragInterval)
       this._dragInterval = null
+    }
+  }
+
+  // Presentation apps (Keynote/PowerPoint Slide Show, Google Slides fullscreen, etc.)
+  // re-assert their own topmost window level on every interaction (e.g. each click to
+  // advance a slide). setAlwaysOnTop() only fixes the window's level at the moment it's
+  // called, so without periodic reassertion the presentation wins the z-order fight and
+  // the webcam window gets progressively covered, click by click (ticket #123889).
+  startWebcamTopReassertion() {
+    this.stopWebcamTopReassertion()
+
+    this._webcamTopInterval = setInterval(() => {
+      if (!this.windows.webcam || this.windows.webcam.isDestroyed()) {
+        return this.stopWebcamTopReassertion()
+      }
+      try {
+        this.windows.webcam.setAlwaysOnTop(true, 'screen-saver')
+      } catch (e) {}
+      try {
+        this.windows.webcam.moveTop()
+      } catch (e) {}
+    }, 500)
+  }
+
+  stopWebcamTopReassertion() {
+    if (this._webcamTopInterval) {
+      clearInterval(this._webcamTopInterval)
+      this._webcamTopInterval = null
     }
   }
 
