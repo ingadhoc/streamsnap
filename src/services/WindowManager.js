@@ -546,14 +546,22 @@ class WindowManager {
       if (anchorWindow && !anchorWindow.isDestroyed()) {
         try {
           const bounds = anchorWindow.getBounds()
-          const anchorDisplay = screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay()
-          const targetDisplay = preferredDisplay || anchorDisplay || screen.getPrimaryDisplay()
+          const targetDisplay = preferredDisplay || screen.getDisplayMatching(bounds) || screen.getPrimaryDisplay()
           const work = targetDisplay.workArea || targetDisplay.bounds || {}
           const originX = typeof work.x === 'number' ? work.x : 0
           const originY = typeof work.y === 'number' ? work.y : 0
           const screenW = work.width || targetDisplay.workAreaSize?.width || screen.getPrimaryDisplay().workAreaSize.width
           const screenH = work.height || targetDisplay.workAreaSize?.height || screen.getPrimaryDisplay().workAreaSize.height
-          const sameDisplay = String(anchorDisplay?.id) === String(targetDisplay?.id)
+          // Trust targetDisplay's own workArea to decide whether the anchor is "on" it, rather than
+          // asking screen.getDisplayMatching() to independently re-derive the anchor's display — that
+          // second lookup can disagree with targetDisplay on WMs that are slow to honor the anchor
+          // window's requested position (createFloatingWindow positions purely from workArea math,
+          // with no such re-derivation, and that one is reported to always land correctly).
+          const sameDisplay =
+            bounds.x >= originX &&
+            bounds.x < originX + screenW &&
+            bounds.y >= originY &&
+            bounds.y < originY + screenH
 
           if (options?.alignSides) {
             const marginRight = Number(options?.marginRight) || WINDOW_CONFIG.webcam.margins.right
