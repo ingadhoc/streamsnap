@@ -333,11 +333,21 @@ jobs:
           name: linux-artifacts
           path: linux-artifacts
 
+      - name: Generate APT publisher token
+        id: apt-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.APT_PUBLISHER_CLIENT_ID }}
+          private-key: ${{ secrets.APT_PUBLISHER_PRIVATE_KEY }}
+          owner: adhoc-dev
+          repositories: devops-apt-repository
+          permission-contents: write
+
       - name: Checkout APT repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           repository: ${{ vars.APT_REPOSITORY || 'adhoc-dev/devops-apt-repository' }}
-          token: ${{ secrets.PAT_TOKEN }}
+          token: ${{ steps.apt-token.outputs.token }}
           path: apt-repo
 
       - name: Copy .deb to pool and push
