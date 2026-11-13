@@ -3,6 +3,11 @@ const path = require('path')
 const environment = require('../config/environment')
 const { WINDOW_CONFIG } = require('../config/constants')
 
+// How long the save toast stays up, and the grace it gets back after the
+// pointer leaves it.
+const TOAST_DURATION_MS = 9000
+const TOAST_HOVER_GRACE_MS = 2500
+
 class WindowManager {
   constructor() {
     this.windows = {
@@ -734,7 +739,7 @@ class WindowManager {
     }
   }
 
-  showToast(options = {}, onClickCallback, durationMs = 5000) {
+  showToast(options = {}, onClickCallback, durationMs = TOAST_DURATION_MS) {
     try {
       const { ipcMain } = require('electron')
       const targetDisplay = this.lastRecordingDisplay || screen.getPrimaryDisplay()
@@ -783,22 +788,50 @@ class WindowManager {
       })
       toast.loadFile(path.join(__dirname, '../windows/toast.html'), { search: params.toString() })
 
+      const removeListeners = () => {
+        ipcMain.removeListener('toast-clicked', clickHandler)
+        ipcMain.removeListener('toast-hover', hoverHandler)
+      }
+
       const clickHandler = (event, id) => {
         if (id !== toastId) return
-        ipcMain.removeListener('toast-clicked', clickHandler)
+        removeListeners()
         if (!toast.isDestroyed()) toast.close()
         if (onClickCallback) onClickCallback()
       }
-      ipcMain.on('toast-clicked', clickHandler)
 
-      const autoClose = setTimeout(() => {
-        ipcMain.removeListener('toast-clicked', clickHandler)
-        if (!toast.isDestroyed()) toast.close()
-      }, durationMs + 200)
+      let autoClose = null
+      let remaining = durationMs + 200
+      let countdownStart = Date.now()
+
+      const armAutoClose = () => {
+        countdownStart = Date.now()
+        autoClose = setTimeout(() => {
+          removeListeners()
+          if (!toast.isDestroyed()) toast.close()
+        }, remaining)
+      }
+
+      // The toast is clickable, so it must not vanish from under the pointer:
+      // hovering holds it open and leaving gives it back the time it had left.
+      const hoverHandler = (event, id, hovering) => {
+        if (id !== toastId) return
+        if (hovering) {
+          if (autoClose) clearTimeout(autoClose)
+          autoClose = null
+          remaining = Math.max(TOAST_HOVER_GRACE_MS, remaining - (Date.now() - countdownStart))
+        } else if (!autoClose) {
+          armAutoClose()
+        }
+      }
+
+      ipcMain.on('toast-clicked', clickHandler)
+      ipcMain.on('toast-hover', hoverHandler)
+      armAutoClose()
 
       toast.once('closed', () => {
-        clearTimeout(autoClose)
-        ipcMain.removeListener('toast-clicked', clickHandler)
+        if (autoClose) clearTimeout(autoClose)
+        removeListeners()
       })
 
       toast.once('ready-to-show', () => {

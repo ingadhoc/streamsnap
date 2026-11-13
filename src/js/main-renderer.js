@@ -1,3 +1,8 @@
+// The live mic meter holds an open capture stream: bound how long an
+// unattended test may keep it, and how often the bars are repainted.
+const MIC_TEST_MAX_MS = 20000
+const MIC_METER_FRAME_MS = 66
+
 class ScreenRecorder {
   constructor() {
     this.recordingState = new RecordingState()
@@ -8,7 +13,9 @@ class ScreenRecorder {
     this.driveAutoSaveAccounts = []
     this.micStream = null
     this.micAnalyser = null
-    this.micAnimationFrame = null
+    this.micAudioContext = null
+    this.micMeterTimer = null
+    this.micTestTimeout = null
     this.webcamStream = null
     this.webcamPreviewActive = false
     this.availableAudioInputs = []
@@ -77,7 +84,7 @@ class ScreenRecorder {
       this.keyboardShortcuts.init()
     }
 
-    // Show mic test if already enabled (either current session or default)
+    // Microphone: only show the test button, never auto-open the capture stream
     if (this.settingsManager.settings.recordMicrophone || this.settingsManager.settings.defaultRecordMicrophone) {
       this.showMicTest()
     }
@@ -196,8 +203,9 @@ class ScreenRecorder {
         this.settingsManager.saveSettings()
         this.updateDeviceHints()
 
-        if (this.settingsManager.settings.recordMicrophone) {
-          await this.showMicTest(true)
+        if (this.settingsManager.settings.recordMicrophone && this.micStream) {
+          // Restart the active test with the new device
+          await this.startMicTest(true)
         }
       })
     }
@@ -570,6 +578,15 @@ class ScreenRecorder {
   }
 
   setupEventListeners() {
+    // Nothing in the window can be watched while it is hidden, so neither the
+    // mic nor the camera stay open behind it.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.stopMicTest()
+        this.stopWebcamStream()
+      }
+    })
+
     window.electronAPI.onStopRecording &&
       window.electronAPI.onStopRecording(() => {
         this.stopRecording(true)
@@ -1152,38 +1169,65 @@ class ScreenRecorder {
     alert(`${errorMessage}\n\nDetails: ${error.message}`)
   }
 
-  async showMicTest(forceRestart = false) {
+  showMicTest() {
     const container = document.getElementById('micTestContainer')
     if (!container) return
 
-    if (forceRestart) {
-      this.hideMicTest()
-    }
-    
     container.classList.remove('hidden')
-    
+
+    const btn = document.getElementById('micTestBtn')
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = 'true'
+      btn.addEventListener('click', () => this.toggleMicTest())
+    }
+  }
+
+  toggleMicTest() {
+    if (this.micStream || this.micAnalyser) {
+      this.stopMicTest()
+    } else {
+      this.startMicTest()
+    }
+  }
+
+  async startMicTest(restart = false) {
+    if (restart) {
+      this.stopMicTest()
+    }
+
+    this.showMicTest()
+
+    const meter = document.getElementById('micTestMeter')
+    if (meter) meter.classList.remove('hidden')
+    const btn = document.getElementById('micTestBtn')
+    if (btn) btn.textContent = 'Stop test'
+
     try {
       // Request microphone access
-      this.micStream = await navigator.mediaDevices.getUserMedia({ 
+      this.micStream = await navigator.mediaDevices.getUserMedia({
         audio: this.getPreferredMicrophoneConstraints()
       })
-      
+
       // Set up audio analysis
-      const audioContext = new AudioContext()
-      const source = audioContext.createMediaStreamSource(this.micStream)
-      this.micAnalyser = audioContext.createAnalyser()
+      this.micAudioContext = new AudioContext()
+      const source = this.micAudioContext.createMediaStreamSource(this.micStream)
+      this.micAnalyser = this.micAudioContext.createAnalyser()
       this.micAnalyser.fftSize = 64
       this.micAnalyser.smoothingTimeConstant = 0.8
       source.connect(this.micAnalyser)
-      
+
       // Start visualization
       this.animateMicBars()
-      
+      // An unattended test must not hold the microphone open forever
+      this.micTestTimeout = setTimeout(() => this.stopMicTest(), MIC_TEST_MAX_MS)
+
       document.getElementById('micStatus').textContent = '✓ Working'
       document.getElementById('micStatus').classList.remove('text-blue-600', 'text-sky-600', 'text-red-600', 'text-gray-500')
       document.getElementById('micStatus').classList.add('text-green-600')
       this.refreshMediaDevices({ requestPermission: false })
     } catch (error) {
+      this.stopMicTest()
+      if (meter) meter.classList.remove('hidden')
       document.getElementById('micStatus').textContent = '✗ Error'
       document.getElementById('micStatus').classList.remove('text-blue-600', 'text-sky-600', 'text-green-600', 'text-gray-500')
       document.getElementById('micStatus').classList.add('text-red-600')
@@ -1191,25 +1235,39 @@ class ScreenRecorder {
     }
   }
 
-  hideMicTest() {
-    const container = document.getElementById('micTestContainer')
-    if (container) {
-      container.classList.add('hidden')
+  stopMicTest() {
+    if (this.micTestTimeout) {
+      clearTimeout(this.micTestTimeout)
+      this.micTestTimeout = null
     }
-    
+
     // Stop animation
-    if (this.micAnimationFrame) {
-      cancelAnimationFrame(this.micAnimationFrame)
-      this.micAnimationFrame = null
+    if (this.micMeterTimer) {
+      clearInterval(this.micMeterTimer)
+      this.micMeterTimer = null
     }
-    
+
     // Stop microphone stream
     if (this.micStream) {
       this.micStream.getTracks().forEach(track => track.stop())
       this.micStream = null
     }
-    
+
     this.micAnalyser = null
+
+    // Closing the context releases the renderer's slot in the audio service
+    if (this.micAudioContext) {
+      try {
+        this.micAudioContext.close()
+      } catch (e) {}
+      this.micAudioContext = null
+    }
+
+    const meter = document.getElementById('micTestMeter')
+    if (meter) meter.classList.add('hidden')
+    const btn = document.getElementById('micTestBtn')
+    if (btn) btn.textContent = 'Test microphone'
+
     const status = document.getElementById('micStatus')
     if (status) {
       status.textContent = 'Speak to test...'
@@ -1218,29 +1276,42 @@ class ScreenRecorder {
     }
   }
 
+  hideMicTest() {
+    this.stopMicTest()
+
+    const container = document.getElementById('micTestContainer')
+    if (container) {
+      container.classList.add('hidden')
+    }
+  }
+
   animateMicBars() {
     if (!this.micAnalyser) return
-    
+
     const bars = document.querySelectorAll('.mic-bar')
     const dataArray = new Uint8Array(this.micAnalyser.frequencyBinCount)
-    
-    const animate = () => {
+    const lastHeights = new Array(bars.length).fill(-1)
+
+    // A level meter does not need 60 fps. Driving it from requestAnimationFrame
+    // kept the renderer and the GPU producing frames even when nothing moved,
+    // which was most of what this test cost.
+    this.micMeterTimer = setInterval(() => {
       if (!this.micAnalyser) return
-      
+
       this.micAnalyser.getByteFrequencyData(dataArray)
-      
-      // Calculate average volume
-      const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
-      
+
       // Update bars based on frequency data
       bars.forEach((bar, index) => {
         const dataIndex = Math.floor(index * dataArray.length / bars.length)
         const value = dataArray[dataIndex] || 0
-        
+
         // Scale the height (min 8px, max 48px)
-        const height = Math.max(8, (value / 255) * 48)
-        bar.style.height = `${height}px`
-        
+        const height = Math.round(Math.max(8, (value / 255) * 48))
+        if (height !== lastHeights[index]) {
+          lastHeights[index] = height
+          bar.style.height = `${height}px`
+        }
+
         // Add active class if there's significant audio
         if (value > 30) {
           bar.classList.add('active')
@@ -1248,11 +1319,7 @@ class ScreenRecorder {
           bar.classList.remove('active')
         }
       })
-      
-      this.micAnimationFrame = requestAnimationFrame(animate)
-    }
-    
-    animate()
+    }, MIC_METER_FRAME_MS)
   }
 
   showWebcamTest() {
@@ -1315,6 +1382,10 @@ class ScreenRecorder {
     }
     this.webcamPreviewActive = false
     if (video) video.srcObject = null
+    const btn = document.getElementById('webcamPreviewBtn')
+    if (btn) btn.textContent = 'Preview camera'
+    const videoContainer = document.getElementById('webcamVideoContainer')
+    if (videoContainer) videoContainer.classList.add('hidden')
     const status = document.getElementById('webcamStatus')
     if (status) { status.textContent = 'Loading...'; status.style.color = '' }
   }
