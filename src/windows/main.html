@@ -110,22 +110,27 @@
                   <option value="default">System default microphone</option>
                 </select>
                 <p id="micDeviceHint" class="text-xs text-gray-500 mt-1.5">Using system default microphone.</p>
-                <div id="micTestContainer" class="hidden mt-3 p-3 bg-white rounded-lg border border-gray-200">
-                  <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-medium text-gray-700">Live test</span>
-                    <span class="text-xs text-gray-500" id="micStatus">Speak to test...</span>
-                  </div>
-                  <div class="flex items-center justify-center h-12 gap-1">
-                    <div class="mic-bar" data-bar="0"></div>
-                    <div class="mic-bar" data-bar="1"></div>
-                    <div class="mic-bar" data-bar="2"></div>
-                    <div class="mic-bar" data-bar="3"></div>
-                    <div class="mic-bar" data-bar="4"></div>
-                    <div class="mic-bar" data-bar="5"></div>
-                    <div class="mic-bar" data-bar="6"></div>
-                    <div class="mic-bar" data-bar="7"></div>
-                    <div class="mic-bar" data-bar="8"></div>
-                    <div class="mic-bar" data-bar="9"></div>
+                <div id="micTestContainer" class="hidden mt-3">
+                  <button id="micTestBtn" class="w-full py-1.5 px-3 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all">
+                    Test microphone
+                  </button>
+                  <div id="micTestMeter" class="hidden mt-2 p-3 bg-white rounded-lg border border-gray-200">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-medium text-gray-700">Live test</span>
+                      <span class="text-xs text-gray-500" id="micStatus">Speak to test...</span>
+                    </div>
+                    <div class="flex items-center justify-center h-12 gap-1">
+                      <div class="mic-bar" data-bar="0"></div>
+                      <div class="mic-bar" data-bar="1"></div>
+                      <div class="mic-bar" data-bar="2"></div>
+                      <div class="mic-bar" data-bar="3"></div>
+                      <div class="mic-bar" data-bar="4"></div>
+                      <div class="mic-bar" data-bar="5"></div>
+                      <div class="mic-bar" data-bar="6"></div>
+                      <div class="mic-bar" data-bar="7"></div>
+                      <div class="mic-bar" data-bar="8"></div>
+                      <div class="mic-bar" data-bar="9"></div>
+                    </div>
                   </div>
                 </div>
               </section>

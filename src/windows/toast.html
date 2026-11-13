@@ -137,6 +137,15 @@
     document.getElementById('toast').addEventListener('click', () => {
       if (window.toastAPI) window.toastAPI.click(toastId)
     })
+
+    // Hold the toast (and freeze its progress bar) while the pointer is on it
+    const progressEl = document.getElementById('progress')
+    const setHover = hovering => {
+      progressEl.style.animationPlayState = hovering ? 'paused' : 'running'
+      if (window.toastAPI && window.toastAPI.hover) window.toastAPI.hover(toastId, hovering)
+    }
+    document.body.addEventListener('mouseenter', () => setHover(true))
+    document.body.addEventListener('mouseleave', () => setHover(false))
   </script>
 </body>
 </html>
