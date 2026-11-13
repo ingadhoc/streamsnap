@@ -255,6 +255,9 @@ jobs:
       - name: Build Mac artifacts
         run: npm run build:all-mac
 
+      - name: Verify Mac signature
+        run: ./scripts/verify-mac-signature.sh
+
       - name: Upload Mac artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

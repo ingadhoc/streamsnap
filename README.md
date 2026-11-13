@@ -51,6 +51,20 @@ Build for all platforms:
 npm run dist:all
 ```
 
+### Opening the macOS build
+
+The macOS artifacts are ad-hoc signed, not notarized: there is no Apple
+Developer ID for this project. macOS blocks a downloaded build on first
+launch, so remove the quarantine flag once after installing:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/StreamSnap.app
+```
+
+Because an ad-hoc signature is tied to the binary itself, macOS treats each
+update as a new app: screen recording and microphone permissions have to be
+granted again after upgrading.
+
 ## Configuration
 
 ### Google Drive Integration

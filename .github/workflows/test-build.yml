@@ -99,6 +99,10 @@ jobs:
       - name: Build artifacts
         run: ${{ matrix.build_command }}
 
+      - name: Verify Mac signature
+        if: matrix.os_name == 'mac'
+        run: ./scripts/verify-mac-signature.sh
+
       - name: Upload artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
