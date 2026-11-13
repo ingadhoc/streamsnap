@@ -199,6 +199,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
+    "afterPack": "scripts/afterpack-sign-mac.js",
     "buildDependenciesFromSource": false,
     "nodeGypRebuild": false,
     "npmRebuild": false
