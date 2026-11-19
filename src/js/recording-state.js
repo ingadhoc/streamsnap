@@ -3,6 +3,7 @@ class RecordingState {
     this.mediaRecorder = null
     this.recordedChunks = []
     this.stream = null
+    this.sourceStreams = []
     this.isRecording = false
     this.isPaused = false
     this.selectedSource = null
@@ -21,6 +22,7 @@ class RecordingState {
     this.selectedSource = null
     this.mediaRecorder = null
     this.stream = null
+    this.sourceStreams = []
     this.recordingStartTime = null
     this.accumulatedPausedMs = 0
     this.lastPauseStart = null
@@ -36,6 +38,13 @@ class RecordingState {
       this.stream.getTracks().forEach(track => track.stop())
       this.stream = null
     }
+
+    // When the audio is mixed, the recorded stream only carries the output of the
+    // AudioContext: the capture streams feeding it stay open unless stopped here.
+    this.sourceStreams.forEach(stream => {
+      stream.getTracks().forEach(track => track.stop())
+    })
+    this.sourceStreams = []
   }
 
   getState() {

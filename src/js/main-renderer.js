@@ -816,6 +816,8 @@ class ScreenRecorder {
       audio: !!wantsSystemAudio
     })
 
+    this.recordingState.sourceStreams.push(displayStream)
+
     if (!wantsMicrophone) {
       if (!wantsSystemAudio && displayStream.getAudioTracks().length) {
         displayStream.getAudioTracks().forEach(track => track.stop())
@@ -825,6 +827,7 @@ class ScreenRecorder {
 
     try {
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: this.getPreferredMicrophoneConstraints() })
+      this.recordingState.sourceStreams.push(micStream)
 
       if (wantsSystemAudio && displayStream.getAudioTracks().length) {
         return this.mixAudioStreams(displayStream, micStream)
