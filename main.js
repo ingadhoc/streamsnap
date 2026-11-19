@@ -1,4 +1,4 @@
-const { app, session } = require('electron')
+const { app, session, desktopCapturer } = require('electron')
 
 // Enable PipeWire screen-capture support on Linux/Wayland before the app is ready.
 if (process.platform === 'linux') {
@@ -121,6 +121,36 @@ class StreamSnapApp {
         session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
           callback({ useSystemPicker: true })
         }, { useSystemPicker: true })
+      }
+
+      // macOS/Windows: resolve the source the user already picked in StreamSnap's own
+      // selector instead of showing the OS picker again — getUserMedia's legacy
+      // chromeMediaSourceId constraints no longer reach ScreenCaptureKit-backed capture
+      // on macOS without this handler registered (Electron 32+).
+      if (process.platform === 'darwin' || process.platform === 'win32') {
+        session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+          try {
+            const sel = this.recordingManager.selectedSource
+            const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] })
+            let match = null
+
+            if (sel) {
+              if (sel.display_id != null) {
+                match = sources.find(s => s.display_id != null && String(s.display_id) === String(sel.display_id))
+              }
+              if (!match && sel.id) {
+                match = sources.find(s => s.id === sel.id)
+              }
+              if (!match && sel.name) {
+                match = sources.find(s => s.name === sel.name)
+              }
+            }
+
+            callback({ video: match || sources[0] })
+          } catch (e) {
+            callback({})
+          }
+        })
       }
 
       if (process.platform === 'darwin') {
