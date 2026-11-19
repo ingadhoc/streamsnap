@@ -1,4 +1,4 @@
-const { desktopCapturer, systemPreferences, dialog, globalShortcut } = require('electron')
+const { desktopCapturer, systemPreferences, dialog, globalShortcut, screen } = require('electron')
 
 class RecordingManager {
   constructor() {
@@ -423,6 +423,35 @@ class RecordingManager {
       isValid: errors.length === 0,
       errors
     }
+  }
+
+  // Which display the overlays (floating controls, webcam, annotation) belong on.
+  // Lives here because it reads selectedSource and the display_id/display_index that
+  // getDesktopSources() above is what puts on it.
+  getTargetDisplay() {
+    try {
+      const sel = this.selectedSource
+      const displays = screen.getAllDisplays()
+
+      if (sel && sel.display_id != null) {
+        const matchById = displays.find(display => String(display.id) === String(sel.display_id))
+        if (matchById) return matchById
+      }
+
+      if (sel && sel.display_index != null && displays[sel.display_index]) {
+        return displays[sel.display_index]
+      }
+
+      // Window sources never carry display_id/display_index — getDesktopSources() only
+      // computes those for full-screen sources (id starting with 'screen:'). Falling back
+      // to the primary display would put the overlays on the wrong monitor whenever the
+      // recorded window lives on a secondary display (ticket #123889). The cursor position
+      // is a reasonable proxy for "the monitor the user is working on".
+      if (sel && typeof sel.id === 'string' && !sel.id.startsWith('screen:')) {
+        return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+      }
+    } catch (e) {}
+    return screen.getPrimaryDisplay()
   }
 
   getRecordingStats() {

@@ -728,8 +728,11 @@ class WindowManager {
 
       await this.windows.annotationOverlay.loadFile('src/windows/annotation-overlay.html')
 
+      // A level BELOW the toolbar and the recording controls on purpose: the overlay
+      // is full-screen, so sharing their level would let a click-to-draw raise it over
+      // them and swallow every click meant for a button.
       try {
-        this.windows.annotationOverlay.setAlwaysOnTop(true, 'screen-saver')
+        this.windows.annotationOverlay.setAlwaysOnTop(true, 'floating')
       } catch (e) {}
       try {
         this.windows.annotationOverlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
@@ -743,11 +746,11 @@ class WindowManager {
         this.windows.annotationOverlay.setIgnoreMouseEvents(true)
       } catch (e) {}
 
-      this.windows.annotationOverlay.once('ready-to-show', () => {
-        try {
-          this.windows.annotationOverlay.showInactive()
-        } catch (e) {}
-      })
+      // loadFile() is already awaited above, so 'ready-to-show' has usually fired by
+      // now and a listener registered here would never run — show it directly.
+      try {
+        this.windows.annotationOverlay.showInactive()
+      } catch (e) {}
 
       this.windows.annotationOverlay.on('closed', () => {
         this.windows.annotationOverlay = null
@@ -818,11 +821,9 @@ class WindowManager {
         this.windows.annotationToolbar.setMovable(true)
       } catch (e) {}
 
-      this.windows.annotationToolbar.once('ready-to-show', () => {
-        try {
-          this.windows.annotationToolbar.show()
-        } catch (e) {}
-      })
+      try {
+        this.windows.annotationToolbar.show()
+      } catch (e) {}
 
       this.windows.annotationToolbar.on('closed', () => {
         this.windows.annotationToolbar = null
@@ -847,6 +848,14 @@ class WindowManager {
   closeAnnotationWindows() {
     this.closeWindow('annotationOverlay')
     this.closeWindow('annotationToolbar')
+  }
+
+  // Every window that only exists for the duration of a recording. Named as a set so
+  // stop/discard/restart tear down the same thing, and a future overlay is added once.
+  closeRecordingOverlays() {
+    this.closeWindow('floating')
+    this.closeWindow('webcam')
+    this.closeAnnotationWindows()
   }
 
   getWindow(type) {

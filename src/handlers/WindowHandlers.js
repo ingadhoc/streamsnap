@@ -1,4 +1,4 @@
-const { ipcMain, screen, app: electronApp } = require('electron')
+const { ipcMain, app: electronApp } = require('electron')
 
 class WindowHandlers {
   constructor(app) {
@@ -59,7 +59,7 @@ class WindowHandlers {
     ipcMain.handle('show-countdown', async (event, options = {}) => {
       try {
         const duration = options?.duration || 5
-        const targetDisplay = this.getTargetDisplay()
+        const targetDisplay = this.app.recordingManager.getTargetDisplay()
 
         const countdownWindow = await this.app.windowManager.createCountdownWindow({ display: targetDisplay })
 
@@ -244,30 +244,6 @@ class WindowHandlers {
         mainWindow.webContents.send('drive-accounts-changed')
       }
     })
-  }
-
-  getTargetDisplay() {
-    let targetDisplay = screen.getPrimaryDisplay()
-    try {
-      const sel = this.app.recordingManager.selectedSource
-      const displays = screen.getAllDisplays()
-
-      if (sel && sel.display_id != null) {
-        const matchById = displays.find(display => String(display.id) === String(sel.display_id))
-        if (matchById) return matchById
-      }
-
-      if (sel && sel.display_index != null && displays[sel.display_index]) {
-        return displays[sel.display_index]
-      }
-
-      // Window sources never carry display_id/display_index (see RecordingHandlers.getTargetDisplay
-      // for details) — fall back to the display nearest the cursor instead of always the primary one.
-      if (sel && typeof sel.id === 'string' && !sel.id.startsWith('screen:')) {
-        return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
-      }
-    } catch (e) {}
-    return targetDisplay
   }
 }
 

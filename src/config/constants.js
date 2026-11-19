@@ -9,6 +9,12 @@ const OAUTH_CONFIG = {
   portRange: { min: 8080, max: 8090 }
 }
 
+const FLOATING_WINDOW = {
+  baseWidth: 360,
+  baseHeight: 64,
+  margins: { left: 20, bottom: 40 }
+}
+
 const WINDOW_CONFIG = {
   main: {
     width: 800,
@@ -16,11 +22,7 @@ const WINDOW_CONFIG = {
     minHeight: 660,
     resizable: true
   },
-  floating: {
-    baseWidth: 360,
-    baseHeight: 64,
-    margins: { left: 20, bottom: 40 }
-  },
+  floating: FLOATING_WINDOW,
   countdown: {
     width: 300,
     height: 300
@@ -50,9 +52,14 @@ const WINDOW_CONFIG = {
     margins: { right: 20, bottom: 60 }
   },
   annotationToolbar: {
-    width: 460,
+    width: 500,
     height: 56,
-    margins: { left: 20, bottom: 112 }
+    // Stacked one gap above the floating controls, so it follows them instead of
+    // drifting apart when their height or bottom margin changes.
+    margins: {
+      left: FLOATING_WINDOW.margins.left,
+      bottom: FLOATING_WINDOW.margins.bottom + FLOATING_WINDOW.baseHeight + 8
+    }
   }
 }
 

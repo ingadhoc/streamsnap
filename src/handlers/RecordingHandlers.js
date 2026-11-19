@@ -1,4 +1,4 @@
-const { ipcMain, screen, app: electronApp } = require('electron')
+const { ipcMain, app: electronApp } = require('electron')
 const DriveAccountManager = require('../services/DriveAccountManager')
 const YouTubeAccountManager = require('../services/YouTubeAccountManager')
 
@@ -34,7 +34,7 @@ class RecordingHandlers {
 
         this.app.recordingManager.startRecording()
         const settings = await this.app.getSettings()
-        const targetDisplay = this.getTargetDisplay()
+        const targetDisplay = this.app.recordingManager.getTargetDisplay()
         const floatingWindow = await this.app.windowManager.createFloatingWindow(settings, { display: targetDisplay })
 
         this.setupFloatingWindow(floatingWindow)
@@ -77,13 +77,7 @@ class RecordingHandlers {
         this.app.recordingManager.clearRecordedVideoData()
 
         await new Promise(resolve => setTimeout(resolve, 250))
-        this.app.windowManager.closeWindow('floating')
-        try {
-          this.app.windowManager.closeWindow('webcam')
-        } catch (e) {}
-        try {
-          this.app.windowManager.closeAnnotationWindows()
-        } catch (e) {}
+        this.app.windowManager.closeRecordingOverlays()
 
         if (!selectedSource) {
           this.app.windowManager.showMainWindow()
@@ -126,13 +120,7 @@ class RecordingHandlers {
         }
         this.app.broadcastToWindows('stop-recording-event')
         await new Promise(resolve => setTimeout(resolve, 250))
-        this.app.windowManager.closeWindow('floating')
-        try {
-          this.app.windowManager.closeWindow('webcam')
-        } catch (e) {}
-        try {
-          this.app.windowManager.closeAnnotationWindows()
-        } catch (e) {}
+        this.app.windowManager.closeRecordingOverlays()
         return { success: true }
       } catch (error) {
         return { success: false, error: error.message }
@@ -155,13 +143,7 @@ class RecordingHandlers {
         this.app.recordingManager.stopRecording()
         this.app.recordingManager.clearRecordedVideoData()
         await new Promise(resolve => setTimeout(resolve, 250))
-        this.app.windowManager.closeWindow('floating')
-        try {
-          this.app.windowManager.closeWindow('webcam')
-        } catch (e) {}
-        try {
-          this.app.windowManager.closeAnnotationWindows()
-        } catch (e) {}
+        this.app.windowManager.closeRecordingOverlays()
         this.app.windowManager.showToast({ mode: 'discarded' }, () => {
           this.app.windowManager.showMainWindow()
         })
@@ -664,34 +646,6 @@ class RecordingHandlers {
       }
     }
   }
-
-  getTargetDisplay() {
-    let targetDisplay = screen.getPrimaryDisplay()
-    try {
-      const sel = this.app.recordingManager.selectedSource
-      const displays = screen.getAllDisplays()
-
-      if (sel && sel.display_id != null) {
-        const matchById = displays.find(display => String(display.id) === String(sel.display_id))
-        if (matchById) return matchById
-      }
-
-      if (sel && sel.display_index != null && displays[sel.display_index]) {
-        return displays[sel.display_index]
-      }
-
-      // Window sources never carry display_id/display_index — RecordingManager.getDesktopSources()
-      // only computes those for full-screen sources (id starting with 'screen:'). Falling back to
-      // the primary display would put the floating controls/webcam on the wrong monitor whenever
-      // the recorded window lives on a secondary display (ticket #123889). The cursor position is
-      // a reasonable proxy for "the monitor the user is working on".
-      if (sel && typeof sel.id === 'string' && !sel.id.startsWith('screen:')) {
-        return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
-      }
-    } catch (e) {}
-    return targetDisplay
-  }
-
   setupFloatingWindow(floatingWindow) {
     if (floatingWindow && typeof floatingWindow.once === 'function') {
       floatingWindow.once('ready-to-show', () => {

@@ -4,9 +4,11 @@ const ctx = canvas.getContext('2d')
 let tool = 'pen'
 let color = '#ef4444'
 const STROKE_WIDTH = 4
+// Freehand points closer together than this add a segment nobody can see, and every
+// one of them is replayed on each later redraw.
+const MIN_POINT_DISTANCE = 2
 const strokes = []
 let current = null
-let drawing = false
 
 function resizeCanvas() {
   const ratio = window.devicePixelRatio || 1
@@ -41,6 +43,10 @@ function drawShape(shape) {
       ctx.lineTo(shape.points[i].x, shape.points[i].y)
     }
     ctx.stroke()
+  } else if (shape.type === 'rect') {
+    ctx.beginPath()
+    ctx.rect(shape.x1, shape.y1, shape.x2 - shape.x1, shape.y2 - shape.y1)
+    ctx.stroke()
   } else if (shape.type === 'circle') {
     const rx = Math.abs(shape.x2 - shape.x1) / 2
     const ry = Math.abs(shape.y2 - shape.y1) / 2
@@ -70,38 +76,41 @@ function pointerPos(e) {
 
 canvas.addEventListener('mousedown', e => {
   if (tool === 'cursor') return
-  drawing = true
   const p = pointerPos(e)
 
-  if (tool === 'pen') {
-    current = { type: 'pen', color, width: STROKE_WIDTH, points: [p] }
-  } else if (tool === 'circle') {
-    current = { type: 'circle', color, width: STROKE_WIDTH, x1: p.x, y1: p.y, x2: p.x, y2: p.y }
-  } else if (tool === 'arrow') {
-    current = { type: 'arrow', color, width: STROKE_WIDTH, x1: p.x, y1: p.y, x2: p.x, y2: p.y }
-  }
+  current =
+    tool === 'pen'
+      ? { type: 'pen', color, width: STROKE_WIDTH, points: [p] }
+      : { type: tool, color, width: STROKE_WIDTH, x1: p.x, y1: p.y, x2: p.x, y2: p.y }
 })
 
-canvas.addEventListener('mousemove', e => {
-  if (!drawing || !current) return
+function extendCurrent(e) {
   const p = pointerPos(e)
-
-  if (current.type === 'pen') {
-    current.points.push(p)
-  } else {
+  if (current.type !== 'pen') {
     current.x2 = p.x
     current.y2 = p.y
+    return
   }
+
+  const last = current.points[current.points.length - 1]
+  if (Math.abs(p.x - last.x) >= MIN_POINT_DISTANCE || Math.abs(p.y - last.y) >= MIN_POINT_DISTANCE) {
+    current.points.push(p)
+  }
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (!current) return
+  extendCurrent(e)
   redraw()
 })
 
-function commitCurrent() {
-  if (!drawing) return
-  drawing = false
-  if (current) {
-    strokes.push(current)
-    current = null
-  }
+function commitCurrent(e) {
+  if (!current) return
+  // The pointer can travel past the last mousemove before the button comes up;
+  // without this the shape ends short of where the user released it.
+  extendCurrent(e)
+  strokes.push(current)
+  current = null
   redraw()
 }
 

@@ -1,19 +1,20 @@
 const toolButtons = {
   cursor: document.getElementById('toolCursor'),
   pen: document.getElementById('toolPen'),
+  rect: document.getElementById('toolRect'),
   circle: document.getElementById('toolCircle'),
   arrow: document.getElementById('toolArrow')
 }
 
 function selectTool(tool) {
   Object.entries(toolButtons).forEach(([name, btn]) => {
-    if (btn) btn.classList.toggle('active', name === tool)
+    btn.classList.toggle('active', name === tool)
   })
   window.electronAPI.setAnnotationTool(tool)
 }
 
 Object.entries(toolButtons).forEach(([name, btn]) => {
-  if (btn) btn.addEventListener('click', () => selectTool(name))
+  btn.addEventListener('click', () => selectTool(name))
 })
 
 document.querySelectorAll('.swatch').forEach(swatch => {
@@ -36,6 +37,4 @@ document.getElementById('closeBtn').addEventListener('click', () => {
   window.electronAPI.closeAnnotation()
 })
 
-document.addEventListener('DOMContentLoaded', () => {
-  selectTool('pen')
-})
+selectTool('pen')

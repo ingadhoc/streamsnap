@@ -130,21 +130,19 @@ class StreamSnapApp {
       if (process.platform === 'darwin' || process.platform === 'win32') {
         session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
           try {
-            const sel = this.recordingManager.selectedSource
-            const sources = await desktopCapturer.getSources({ types: ['window', 'screen'] })
-            let match = null
+            const sel = this.recordingManager.selectedSource || {}
+            // No thumbnails: the callback only reads ids and names, and rendering a live
+            // bitmap of every open window is the expensive part of getSources() on macOS.
+            const sources = await desktopCapturer.getSources({
+              types: ['window', 'screen'],
+              thumbnailSize: { width: 0, height: 0 }
+            })
 
-            if (sel) {
-              if (sel.display_id != null) {
-                match = sources.find(s => s.display_id != null && String(s.display_id) === String(sel.display_id))
-              }
-              if (!match && sel.id) {
-                match = sources.find(s => s.id === sel.id)
-              }
-              if (!match && sel.name) {
-                match = sources.find(s => s.name === sel.name)
-              }
-            }
+            const match =
+              (sel.display_id != null &&
+                sources.find(s => s.display_id != null && String(s.display_id) === String(sel.display_id))) ||
+              (sel.id && sources.find(s => s.id === sel.id)) ||
+              (sel.name && sources.find(s => s.name === sel.name))
 
             callback({ video: match || sources[0] })
           } catch (e) {
