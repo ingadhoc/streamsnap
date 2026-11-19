@@ -84,6 +84,13 @@
       .btn-pause {
         background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
       }
+      .btn-annotate {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
+      }
+      .btn-annotate.active {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+      }
       .btn-resume {
         background: linear-gradient(135deg, #10b981, #059669);
         box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
@@ -179,6 +186,14 @@
     <div class="controls">
       <div class="dot"></div>
       <span class="timer" id="recordingTime">00:00</span>
+
+      <button id="annotateBtn" class="btn btn-annotate" title="Marcar elementos">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M12 19l7-7 3 3-7 7-3-3z" />
+          <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+          <path d="M2 2l7.586 7.586" />
+        </svg>
+      </button>
 
       <button id="pauseBtn" class="btn btn-pause" title="Pause">
         <div class="pause-bars"></div>

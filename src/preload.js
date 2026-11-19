@@ -113,6 +113,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   submitAuthCode: code => ipcRenderer.send('submit-auth-code', code),
 
+  toggleAnnotation: () => ipcRenderer.invoke('annotation:toggle'),
+  closeAnnotation: () => ipcRenderer.invoke('annotation:close'),
+  setAnnotationTool: tool => ipcRenderer.invoke('annotation:set-tool', tool),
+  setAnnotationColor: color => ipcRenderer.invoke('annotation:set-color', color),
+  undoAnnotation: () => ipcRenderer.invoke('annotation:undo'),
+  clearAnnotation: () => ipcRenderer.invoke('annotation:clear'),
+
+  onAnnotationToolChanged: callback => {
+    ipcRenderer.on('annotation:tool-changed', (event, tool) => {
+      try {
+        callback(tool)
+      } catch (e) {}
+    })
+  },
+  onAnnotationColorChanged: callback => {
+    ipcRenderer.on('annotation:color-changed', (event, color) => {
+      try {
+        callback(color)
+      } catch (e) {}
+    })
+  },
+  onAnnotationUndo: callback => ipcRenderer.on('annotation:undo', callback),
+  onAnnotationClear: callback => ipcRenderer.on('annotation:clear', callback),
+  onAnnotationClosed: callback => ipcRenderer.on('annotation:closed', callback),
+
   closeFloating: () => ipcRenderer.invoke('close-floating'),
   moveFloatingWindow: (deltaX, deltaY) => ipcRenderer.invoke('move-floating-window', deltaX, deltaY),
   startFloatingDrag: () => ipcRenderer.invoke('start-floating-drag'),

@@ -93,6 +93,23 @@ function setupEventListeners() {
   const restartBtn = document.getElementById('restartBtn')
   const stopBtn = document.getElementById('stopBtn')
   const discardBtn = document.getElementById('discardBtn')
+  const annotateBtn = document.getElementById('annotateBtn')
+
+  if (annotateBtn) {
+    annotateBtn.addEventListener('click', async () => {
+      try {
+        const result = await window.electronAPI.toggleAnnotation()
+        if (result && result.success) {
+          annotateBtn.classList.toggle('active', !!result.open)
+        }
+      } catch (error) {}
+    })
+
+    window.electronAPI.onAnnotationClosed &&
+      window.electronAPI.onAnnotationClosed(() => {
+        annotateBtn.classList.remove('active')
+      })
+  }
 
   if (pauseBtn) {
     pauseBtn.addEventListener('click', () => {

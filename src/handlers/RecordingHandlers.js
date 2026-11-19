@@ -81,6 +81,9 @@ class RecordingHandlers {
         try {
           this.app.windowManager.closeWindow('webcam')
         } catch (e) {}
+        try {
+          this.app.windowManager.closeAnnotationWindows()
+        } catch (e) {}
 
         if (!selectedSource) {
           this.app.windowManager.showMainWindow()
@@ -127,6 +130,9 @@ class RecordingHandlers {
         try {
           this.app.windowManager.closeWindow('webcam')
         } catch (e) {}
+        try {
+          this.app.windowManager.closeAnnotationWindows()
+        } catch (e) {}
         return { success: true }
       } catch (error) {
         return { success: false, error: error.message }
@@ -152,6 +158,9 @@ class RecordingHandlers {
         this.app.windowManager.closeWindow('floating')
         try {
           this.app.windowManager.closeWindow('webcam')
+        } catch (e) {}
+        try {
+          this.app.windowManager.closeAnnotationWindows()
         } catch (e) {}
         this.app.windowManager.showToast({ mode: 'discarded' }, () => {
           this.app.windowManager.showMainWindow()

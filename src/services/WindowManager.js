@@ -19,7 +19,9 @@ class WindowManager {
       sourceSelector: null,
       webcam: null,
       driveAccounts: null,
-      youtubeAccounts: null
+      youtubeAccounts: null,
+      annotationOverlay: null,
+      annotationToolbar: null
     }
 
     this.preloadPath = path.join(__dirname, '../preload.js')
@@ -684,6 +686,167 @@ class WindowManager {
     } catch (error) {
       throw error
     }
+  }
+
+  // Full-display transparent overlay the user draws on (pen/circle/arrow) during recording.
+  // It covers the display's full bounds, not workArea, so the strokes land inside the
+  // screen pixels getDisplayMedia actually captures.
+  async createAnnotationOverlayWindow(targetDisplay) {
+    try {
+      if (this.windows.annotationOverlay && !this.windows.annotationOverlay.isDestroyed()) {
+        return this.windows.annotationOverlay
+      }
+
+      const display = targetDisplay || screen.getPrimaryDisplay()
+      const bounds = display.bounds || display.workArea
+
+      this.windows.annotationOverlay = new BrowserWindow({
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        frame: false,
+        alwaysOnTop: true,
+        resizable: false,
+        movable: false,
+        skipTaskbar: true,
+        transparent: true,
+        backgroundColor: '#00000000',
+        hasShadow: false,
+        focusable: true,
+        acceptFirstMouse: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: this.preloadPath,
+          enableRemoteModule: false,
+          sandbox: false,
+          backgroundThrottling: false
+        },
+        show: false
+      })
+
+      await this.windows.annotationOverlay.loadFile('src/windows/annotation-overlay.html')
+
+      try {
+        this.windows.annotationOverlay.setAlwaysOnTop(true, 'screen-saver')
+      } catch (e) {}
+      try {
+        this.windows.annotationOverlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+      } catch (e) {}
+      try {
+        this.windows.annotationOverlay.setHasShadow(false)
+      } catch (e) {}
+      // Click-through by default: the overlay only grabs the mouse while an active draw
+      // tool is selected on the toolbar (see setAnnotationInteractive).
+      try {
+        this.windows.annotationOverlay.setIgnoreMouseEvents(true)
+      } catch (e) {}
+
+      this.windows.annotationOverlay.once('ready-to-show', () => {
+        try {
+          this.windows.annotationOverlay.showInactive()
+        } catch (e) {}
+      })
+
+      this.windows.annotationOverlay.on('closed', () => {
+        this.windows.annotationOverlay = null
+      })
+
+      return this.windows.annotationOverlay
+    } catch (error) {
+      throw error
+    }
+  }
+
+  async createAnnotationToolbarWindow(targetDisplay) {
+    try {
+      if (this.windows.annotationToolbar && !this.windows.annotationToolbar.isDestroyed()) {
+        return this.windows.annotationToolbar
+      }
+
+      const display = targetDisplay || screen.getPrimaryDisplay()
+      const workArea = display.workArea || display.bounds || {}
+      const originX = typeof workArea.x === 'number' ? workArea.x : 0
+      const originY = typeof workArea.y === 'number' ? workArea.y : 0
+      const screenH = workArea.height || screen.getPrimaryDisplay().workAreaSize.height
+
+      const { width, height, margins } = WINDOW_CONFIG.annotationToolbar
+      const x = originX + margins.left
+      const y = originY + Math.max(10, screenH - (height + margins.bottom))
+
+      this.windows.annotationToolbar = new BrowserWindow({
+        width,
+        height,
+        x,
+        y,
+        frame: false,
+        alwaysOnTop: true,
+        resizable: false,
+        skipTaskbar: true,
+        transparent: true,
+        backgroundColor: '#00000000',
+        hasShadow: false,
+        focusable: true,
+        acceptFirstMouse: true,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: this.preloadPath,
+          enableRemoteModule: false,
+          sandbox: false,
+          backgroundThrottling: false
+        },
+        show: false
+      })
+
+      await this.windows.annotationToolbar.loadFile('src/windows/annotation-toolbar.html')
+
+      try {
+        this.windows.annotationToolbar.setAlwaysOnTop(true, 'screen-saver')
+      } catch (e) {}
+      try {
+        this.windows.annotationToolbar.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+      } catch (e) {}
+      try {
+        this.windows.annotationToolbar.setHasShadow(false)
+      } catch (e) {}
+      try {
+        this.windows.annotationToolbar.setContentProtection(true)
+      } catch (e) {}
+      try {
+        this.windows.annotationToolbar.setMovable(true)
+      } catch (e) {}
+
+      this.windows.annotationToolbar.once('ready-to-show', () => {
+        try {
+          this.windows.annotationToolbar.show()
+        } catch (e) {}
+      })
+
+      this.windows.annotationToolbar.on('closed', () => {
+        this.windows.annotationToolbar = null
+      })
+
+      return this.windows.annotationToolbar
+    } catch (error) {
+      throw error
+    }
+  }
+
+  // Interactive = the overlay grabs the mouse to draw; click-through = input passes to
+  // whatever is underneath while the drawn strokes stay visible on screen.
+  setAnnotationInteractive(interactive) {
+    if (this.windows.annotationOverlay && !this.windows.annotationOverlay.isDestroyed()) {
+      try {
+        this.windows.annotationOverlay.setIgnoreMouseEvents(!interactive)
+      } catch (e) {}
+    }
+  }
+
+  closeAnnotationWindows() {
+    this.closeWindow('annotationOverlay')
+    this.closeWindow('annotationToolbar')
   }
 
   getWindow(type) {

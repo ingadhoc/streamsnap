@@ -19,6 +19,7 @@ const WindowHandlers = require('./src/handlers/WindowHandlers')
 const DriveHandlers = require('./src/handlers/DriveHandlers')
 const YouTubeHandlers = require('./src/handlers/YouTubeHandlers')
 const StorageHandlers = require('./src/handlers/StorageHandlers')
+const AnnotationHandlers = require('./src/handlers/AnnotationHandlers')
 
 class StreamSnapApp {
   constructor() {
@@ -52,6 +53,7 @@ class StreamSnapApp {
     new DriveHandlers(this)
     new YouTubeHandlers(this)
     new StorageHandlers(this)
+    new AnnotationHandlers(this)
   }
 
   setupRecordingEvents() {

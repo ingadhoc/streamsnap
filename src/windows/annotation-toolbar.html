@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Annotation Toolbar</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      button {
+        -webkit-app-region: no-drag;
+        cursor: pointer;
+      }
+      .toolbar {
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        border-radius: 14px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        user-select: none;
+        -webkit-app-region: drag;
+        cursor: grab;
+      }
+      .sep {
+        width: 1px;
+        height: 24px;
+        background: rgba(255, 255, 255, 0.15);
+        margin: 0 2px;
+      }
+      .tool-btn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        transition: background 0.15s;
+      }
+      .tool-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .tool-btn.active {
+        background: rgba(59, 130, 246, 0.9);
+      }
+      .swatch {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        padding: 0;
+      }
+      .swatch.active {
+        border-color: white;
+      }
+      .close-btn {
+        background: rgba(239, 68, 68, 0.15);
+      }
+      .close-btn:hover {
+        background: rgba(239, 68, 68, 0.35);
+      }
+      .x-icon {
+        width: 12px;
+        height: 12px;
+        position: relative;
+      }
+      .x-icon::before,
+      .x-icon::after {
+        content: '';
+        position: absolute;
+        width: 12px;
+        height: 2px;
+        background: white;
+        border-radius: 1px;
+        top: 50%;
+        left: 50%;
+      }
+      .x-icon::before {
+        transform: translate(-50%, -50%) rotate(45deg);
+      }
+      .x-icon::after {
+        transform: translate(-50%, -50%) rotate(-45deg);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button id="toolCursor" class="tool-btn" title="Mover / interactuar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M3 2l7.07 16.97 2.51-7.39 7.39-2.51L3 2z" />
+        </svg>
+      </button>
+      <button id="toolPen" class="tool-btn active" title="Lápiz">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M12 19l7-7 3 3-7 7-3-3z" />
+          <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+          <path d="M2 2l7.586 7.586" />
+        </svg>
+      </button>
+      <button id="toolCircle" class="tool-btn" title="Círculo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+      </button>
+      <button id="toolArrow" class="tool-btn" title="Flecha">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M5 19L19 5" />
+          <path d="M9 5h10v10" />
+        </svg>
+      </button>
+
+      <div class="sep"></div>
+
+      <button class="swatch active" data-color="#ef4444" style="background: #ef4444" title="Rojo"></button>
+      <button class="swatch" data-color="#facc15" style="background: #facc15" title="Amarillo"></button>
+      <button class="swatch" data-color="#22c55e" style="background: #22c55e" title="Verde"></button>
+      <button class="swatch" data-color="#3b82f6" style="background: #3b82f6" title="Azul"></button>
+      <button class="swatch" data-color="#ffffff" style="background: #ffffff" title="Blanco"></button>
+
+      <div class="sep"></div>
+
+      <button id="undoBtn" class="tool-btn" title="Deshacer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M9 14L4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+        </svg>
+      </button>
+      <button id="clearBtn" class="tool-btn" title="Borrar todo">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M3 6h18" />
+          <path d="M8 6V4h8v2" />
+          <path d="M6 6l1 14h10l1-14" />
+        </svg>
+      </button>
+
+      <div class="sep"></div>
+
+      <button id="closeBtn" class="tool-btn close-btn" title="Salir del modo marcado">
+        <div class="x-icon"></div>
+      </button>
+    </div>
+
+    <script src="../js/annotation-toolbar-renderer.js"></script>
+  </body>
+</html>

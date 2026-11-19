@@ -17,7 +17,7 @@ const WINDOW_CONFIG = {
     resizable: true
   },
   floating: {
-    baseWidth: 300,
+    baseWidth: 360,
     baseHeight: 64,
     margins: { left: 20, bottom: 40 }
   },
@@ -48,6 +48,11 @@ const WINDOW_CONFIG = {
     defaultWidth: 320,
     defaultHeight: 180,
     margins: { right: 20, bottom: 60 }
+  },
+  annotationToolbar: {
+    width: 460,
+    height: 56,
+    margins: { left: 20, bottom: 112 }
   }
 }
 
