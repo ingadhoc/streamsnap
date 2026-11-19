@@ -738,7 +738,10 @@ class ScreenRecorder {
         }
       }
 
-      const finalStream = await this.createMediaStream(captureSource)
+      const finalStream = await this.createDisplayMediaStream({
+        wantsMicrophone: this.settingsManager.settings.recordMicrophone,
+        wantsSystemAudio: this.settingsManager.settings.recordSystemAudio
+      })
       if (!finalStream) {
         throw new Error('Failed to create media stream')
       }
@@ -803,104 +806,10 @@ class ScreenRecorder {
     }
   }
 
-  async createMediaStream(source) {
-    const wantsMicrophone = this.settingsManager.settings.recordMicrophone
-    const wantsSystemAudio = this.settingsManager.settings.recordSystemAudio
-
-    // Electron 32+ requires a session.setDisplayMediaRequestHandler to resolve
-    // getUserMedia's legacy chromeMediaSourceId constraints on macOS/Windows —
-    // without it, Chromium's ScreenCaptureKit-backed capture on macOS rejects
-    // the request with NotAllowedError regardless of the OS permission state.
-    // main.js registers that handler for these two platforms; getDisplayMedia()
-    // is what actually reaches it.
-    if (window.electronAPI?.platform === 'darwin' || window.electronAPI?.platform === 'win32') {
-      return await this.createDisplayMediaStream({ wantsMicrophone, wantsSystemAudio })
-    }
-
-    if (!wantsMicrophone && !wantsSystemAudio) {
-      return await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          mandatory: {
-            chromeMediaSource: 'desktop',
-            chromeMediaSourceId: source.id
-          }
-        }
-      })
-    }
-
-    if (wantsMicrophone && !wantsSystemAudio) {
-      const videoStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          mandatory: {
-            chromeMediaSource: 'desktop',
-            chromeMediaSourceId: source.id
-          }
-        }
-      })
-
-      try {
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: this.getPreferredMicrophoneConstraints() })
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext
-        if (!AudioContextClass) {
-          return new MediaStream([...videoStream.getVideoTracks(), ...micStream.getAudioTracks()])
-        }
-        const audioContext = new AudioContext()
-        const destination = audioContext.createMediaStreamDestination()
-        const micSource = audioContext.createMediaStreamSource(micStream)
-        const micGain = audioContext.createGain()
-        micGain.gain.value = 2.0
-        micSource.connect(micGain).connect(destination)
-        this.recordingState.audioContext = audioContext
-        return new MediaStream([...videoStream.getVideoTracks(), ...destination.stream.getAudioTracks()])
-      } catch (micError) {
-        alert('Microphone access denied. Recording video only.')
-        return videoStream
-      }
-    }
-
-    if (!wantsMicrophone && wantsSystemAudio) {
-      return await navigator.mediaDevices.getUserMedia({
-        audio: {
-          mandatory: {
-            chromeMediaSource: 'desktop',
-            chromeMediaSourceId: source.id
-          }
-        },
-        video: {
-          mandatory: {
-            chromeMediaSource: 'desktop',
-            chromeMediaSourceId: source.id
-          }
-        }
-      })
-    }
-
-    const displayStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        mandatory: {
-          chromeMediaSource: 'desktop',
-          chromeMediaSourceId: source.id
-        }
-      },
-      video: {
-        mandatory: {
-          chromeMediaSource: 'desktop',
-          chromeMediaSourceId: source.id
-        }
-      }
-    })
-
-    try {
-      const micStream = await navigator.mediaDevices.getUserMedia({ audio: this.getPreferredMicrophoneConstraints() })
-      return this.mixAudioStreams(displayStream, micStream)
-    } catch (micError) {
-      alert('Microphone access denied. Recording with system audio only.')
-      return displayStream
-    }
-  }
-
+  // The one capture path for every platform. main.js answers the request per platform:
+  // on macOS and Windows it resolves the source the user picked in StreamSnap's own
+  // selector; on Linux it hands the choice to the XDG portal, which is the one that
+  // decides there anyway.
   async createDisplayMediaStream({ wantsMicrophone, wantsSystemAudio }) {
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
       video: true,
