@@ -94,7 +94,7 @@ jobs:
                 MAX_PATCH="${CANDIDATE_PATCH}"
               fi
             fi
-          done < <(git ls-remote --tags --refs origin)
+          done < <(git ls-remote --tags --refs origin | cut -f2)
 
           NEXT_PATCH="${PATCH}"
           if [[ -n "${MAX_PATCH}" && "${MAX_PATCH}" -ge "${PATCH}" ]]; then
